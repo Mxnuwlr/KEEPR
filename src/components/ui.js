@@ -18,7 +18,7 @@
 import React from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, StatusBar, Platform,
+  StyleSheet, StatusBar, Platform, TextInput,
 } from 'react-native';
 
 // Third-party
@@ -227,6 +227,61 @@ export function MenuRow({ icon, label, value, onPress, danger, rightElement, las
     );
   }
   return content;
+}
+
+// ── FieldRow ──────────────────────────────────────────────────────
+// Inline-editierbares Feld für Profil-/Einstellungs-Screens:
+// Icon-Quadrat + Label (+ optionaler Hint) links, Wert als Pill rechts.
+// Tap → TextInput inline, Blur/Enter/Häkchen speichert via onSave(text).
+export function FieldRow({ icon, label, hint, value, unit, placeholder, numeric, autoCapitalize, onSave, last }) {
+  const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const [editing, setEditing] = React.useState(false);
+  const [val, setVal] = React.useState(value?.toString() || '');
+  React.useEffect(() => { if (!editing) setVal(value?.toString() || ''); }, [value]);
+  const save = () => { setEditing(false); if (val !== (value?.toString() || '')) onSave(val); };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      disabled={editing}
+      onPress={() => setEditing(true)}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        paddingHorizontal: S.md, paddingVertical: 12,
+        borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderBottomColor: C.border,
+      }}
+    >
+      {icon && (
+        <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center' }}>
+          <Feather name={icon} size={16} color={C.textSecondary} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={[T.body, { color: C.text }]}>{label}</Text>
+        {hint ? <Text style={[T.caption, { color: C.textTertiary, marginTop: 1 }]}>{hint}</Text> : null}
+      </View>
+      {editing ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TextInput
+            style={{ backgroundColor: C.bgTertiary, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6, color: C.text, fontSize: 15, minWidth: 90, textAlign: 'right', borderWidth: StyleSheet.hairlineWidth, borderColor: C.borderStrong }}
+            value={val} onChangeText={setVal} autoFocus
+            keyboardType={numeric ? 'decimal-pad' : 'default'}
+            autoCapitalize={autoCapitalize || 'none'}
+            onBlur={save} onSubmitEditing={save}
+          />
+          {unit ? <Text style={[T.caption, { color: C.textSecondary }]}>{unit}</Text> : null}
+          <TouchableOpacity onPress={save} hitSlop={8}><Feather name="check-circle" size={20} color={C.success} /></TouchableOpacity>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.full, paddingHorizontal: 12, paddingVertical: 6 }}>
+          <Text style={[T.bodyMed, { color: val ? C.text : C.textTertiary, fontSize: 14 }]}>
+            {val ? `${val}${unit ? ` ${unit}` : ''}` : placeholder || '–'}
+          </Text>
+          <Feather name="edit-2" size={11} color={C.textTertiary} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 }
 
 // ── Divider ───────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 
 // Internal
 import { useTheme, useThemeMode } from '../theme';
+import { ScreenHeader } from '../components/ui';
 import { useStore } from '../store';
 import { getBaseUrl, setBaseUrl, DEFAULT_BASE_URL, api } from '../api/client';
 import { removeSecureItem } from '../utils/secureStorage';

@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 // Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
-import { ScreenHeader } from '../components/ui';
+import { ScreenHeader, FieldRow } from '../components/ui';
 import { api, secondsToPace, paceToSeconds } from '../api/client';
 
 const SPORTS = [
@@ -38,38 +38,9 @@ const SPORTS = [
   { key: 'mobility', label: 'Mobility', icon: 'human', color: '#CE93D8' },
 ];
 
-const FITNESS_LABELS = { beginner: 'Anfänger', intermediate: 'Mittel', advanced: 'Fortgeschriten', elite: 'Elite' };
+const FITNESS_LABELS = { beginner: 'Anfänger', intermediate: 'Mittel', advanced: 'Fortgeschritten', elite: 'Elite' };
 const VOLUME_LABELS = { short: 'Kurz & knackig', balanced: 'Ausgewogen', high: 'Umfangreich' };
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-function Field({ label, value, onSave, placeholder, unit, hint }) {
-  const { colors: C, type: T, radius: R } = useTheme();
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(value?.toString() || '');
-  const save = () => { setEditing(false); if (val !== value?.toString()) onSave(val); };
-  if (!editing) return (
-    <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }} onPress={() => setEditing(true)}>
-      <View style={{ flex: 1 }}>
-        <Text style={[T.body, { color: C.textSecondary }]}>{label}</Text>
-        {hint && <Text style={[T.caption, { color: C.textTertiary }]}>{hint}</Text>}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text style={[T.body, { color: val ? C.text : C.textTertiary }]}>{val ? `${val}${unit ? ` ${unit}` : ''}` : placeholder || '–'}</Text>
-        <Feather name="edit-2" size={12} color={C.textTertiary} />
-      </View>
-    </TouchableOpacity>
-  );
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-      <Text style={[T.body, { color: C.textSecondary }]}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TextInput style={{ backgroundColor: C.bgTertiary, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6, color: C.text, fontSize: 15, minWidth: 80, textAlign: 'right', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }} value={val} onChangeText={setVal} autoFocus onBlur={save} onSubmitEditing={save} />
-        {unit && <Text style={[T.caption, { color: C.textSecondary }]}>{unit}</Text>}
-        <TouchableOpacity onPress={save}><Feather name="check-circle" size={20} color={C.tint} /></TouchableOpacity>
-      </View>
-    </View>
-  );
-}
 
 function parseTrainingPlan(text) {
   const blocks = [];
@@ -243,7 +214,7 @@ export default function SportprofilScreen({ navigation }) {
             </View>
           </View>
           {divider}
-          <Field label="Max. Stunden/Woche" value={user?.trainingHoursPerWeek} onSave={v => save({ trainingHoursPerWeek: parseInt(v) || null })} placeholder="8" unit="h" />
+          <FieldRow last icon="clock" label="Max. Stunden/Woche" value={user?.trainingHoursPerWeek} onSave={v => save({ trainingHoursPerWeek: parseInt(v) || null })} placeholder="8" unit="h" />
           {divider}
           <View style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
             <Text style={[T.body, { color: C.textSecondary, marginBottom: S.sm }]}>Fitness Level</Text>
@@ -271,37 +242,37 @@ export default function SportprofilScreen({ navigation }) {
             </View>
           </View>
           {divider}
-          <Field label="Übungen pro Krafteinheit" value={user?.preferredExercises} onSave={v => save({ preferredExercises: parseInt(v) || null })} placeholder="z.B. 6" hint="Wunsch — leer = KI entscheidet" />
+          <FieldRow last icon="list" label="Übungen pro Krafteinheit" value={user?.preferredExercises} onSave={v => save({ preferredExercises: parseInt(v) || null })} placeholder="z.B. 6" hint="Wunsch — leer = KI entscheidet" />
           {divider}
-          <Field label="Wunsch-Einheitsdauer" value={user?.preferredSessionMin} onSave={v => save({ preferredSessionMin: parseInt(v) || null })} placeholder="z.B. 60" unit="Min" hint="Leer = KI entscheidet" />
+          <FieldRow last icon="watch" label="Wunsch-Einheitsdauer" value={user?.preferredSessionMin} onSave={v => save({ preferredSessionMin: parseInt(v) || null })} placeholder="z.B. 60" unit="Min" hint="Leer = KI entscheidet" />
         </View>
 
         {/* Leistungswerte */}
         {sectionLabel('Leistungswerte')}
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <Field label="FTP" value={user?.ftp} onSave={v => save({ ftp: parseInt(v) || null })} placeholder="250" unit="W" hint="Functional Threshold Power (Rad)" />
+          <FieldRow last icon="zap" label="FTP" value={user?.ftp} onSave={v => save({ ftp: parseInt(v) || null })} placeholder="250" unit="W" hint="Functional Threshold Power (Rad)" />
           {divider}
-          <Field label="Max-Herzfrequenz" value={user?.maxHr} onSave={v => save({ maxHr: parseInt(v) || null })} placeholder="190" unit="bpm" />
+          <FieldRow last icon="heart" label="Max-Herzfrequenz" value={user?.maxHr} onSave={v => save({ maxHr: parseInt(v) || null })} placeholder="190" unit="bpm" />
           {divider}
-          <Field label="Ruhe-Herzfrequenz" value={user?.restingHr} onSave={v => save({ restingHr: parseInt(v) || null })} placeholder="55" unit="bpm" />
+          <FieldRow last icon="moon" label="Ruhe-Herzfrequenz" value={user?.restingHr} onSave={v => save({ restingHr: parseInt(v) || null })} placeholder="55" unit="bpm" />
           {divider}
-          <Field label="Schwimm-Pace" value={user?.swimPace ? secondsToPace(user.swimPace) : ''} onSave={v => save({ swimPace: paceToSeconds(v) })} placeholder="1:45" unit="/100m" hint="Format: M:SS" />
+          <FieldRow last icon="droplet" label="Schwimm-Pace" value={user?.swimPace ? secondsToPace(user.swimPace) : ''} onSave={v => save({ swimPace: paceToSeconds(v) })} placeholder="1:45" unit="/100m" hint="Format: M:SS" />
           {divider}
-          <Field label="Lauf-Pace" value={user?.runPace ? secondsToPace(user.runPace) : ''} onSave={v => save({ runPace: paceToSeconds(v) })} placeholder="5:30" unit="/km" hint="Format: M:SS" />
+          <FieldRow last icon="trending-up" label="Lauf-Pace" value={user?.runPace ? secondsToPace(user.runPace) : ''} onSave={v => save({ runPace: paceToSeconds(v) })} placeholder="5:30" unit="/km" hint="Format: M:SS" />
         </View>
 
         {/* Persönliche Bestleistungen */}
         {sectionLabel('Persönliche Bestleistungen')}
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <Field label="5 km" value={user?.pr5k} onSave={v => save({ pr5k: v })} placeholder="–" hint="Format: MM:SS" />
+          <FieldRow last icon="award" label="5 km" value={user?.pr5k} onSave={v => save({ pr5k: v })} placeholder="–" hint="Format: MM:SS" />
           {divider}
-          <Field label="10 km" value={user?.pr10k} onSave={v => save({ pr10k: v })} placeholder="–" hint="Format: H:MM:SS" />
+          <FieldRow last icon="award" label="10 km" value={user?.pr10k} onSave={v => save({ pr10k: v })} placeholder="–" hint="Format: H:MM:SS" />
           {divider}
-          <Field label="Halbmarathon" value={user?.prHM} onSave={v => save({ prHM: v })} placeholder="–" hint="Format: H:MM:SS" />
+          <FieldRow last icon="award" label="Halbmarathon" value={user?.prHM} onSave={v => save({ prHM: v })} placeholder="–" hint="Format: H:MM:SS" />
           {divider}
-          <Field label="Marathon" value={user?.prMarathon} onSave={v => save({ prMarathon: v })} placeholder="–" hint="Format: H:MM:SS" />
+          <FieldRow last icon="award" label="Marathon" value={user?.prMarathon} onSave={v => save({ prMarathon: v })} placeholder="–" hint="Format: H:MM:SS" />
           {divider}
-          <Field label="Schwimmen 1 km" value={user?.prSwim1k} onSave={v => save({ prSwim1k: v })} placeholder="–" hint="Format: MM:SS" />
+          <FieldRow last icon="award" label="Schwimmen 1 km" value={user?.prSwim1k} onSave={v => save({ prSwim1k: v })} placeholder="–" hint="Format: MM:SS" />
         </View>
 
         {/* Verletzungen & Gesundheit */}

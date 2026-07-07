@@ -20,40 +20,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setSecureItem } from '../utils/secureStorage';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
-import { ScreenHeader } from '../components/ui';
+import { ScreenHeader, SectionLabel, Surface, FieldRow } from '../components/ui';
 import { api } from '../api/client';
-
-function Field({ label, value, onSave, placeholder, autoCapitalize }) {
-  const { colors: C, type: T, radius: R } = useTheme();
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(value?.toString() || '');
-  const save = () => { setEditing(false); if (val !== value?.toString()) onSave(val); };
-  if (!editing) return (
-    <TouchableOpacity
-      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}
-      onPress={() => setEditing(true)}
-    >
-      <Text style={[T.body, { color: C.textSecondary }]}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text style={[T.body, { color: val ? C.text : C.textTertiary }]}>{val || placeholder || '–'}</Text>
-        <Feather name="edit-2" size={12} color={C.textTertiary} />
-      </View>
-    </TouchableOpacity>
-  );
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-      <Text style={[T.body, { color: C.textSecondary }]}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TextInput
-          style={{ backgroundColor: C.bgTertiary, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6, color: C.text, fontSize: 15, minWidth: 120, textAlign: 'right', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-          value={val} onChangeText={setVal} autoFocus autoCapitalize={autoCapitalize || 'none'}
-          onBlur={save} onSubmitEditing={save}
-        />
-        <TouchableOpacity onPress={save}><Feather name="check-circle" size={20} color={C.tint} /></TouchableOpacity>
-      </View>
-    </View>
-  );
-}
 
 const EQUIPMENT_LIST = [
   { id: 'Airfryer', icon: 'wind' },
@@ -157,23 +125,38 @@ export default function KontoScreen({ navigation }) {
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
 
         {/* Profil */}
-        <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: 6 }]}>Profil</Text>
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <Field label="Anzeigename" value={user?.displayName} onSave={v => save({ displayName: v })} placeholder="Manuel" autoCapitalize="words" />
-          {divider}
-          <Field label="Username" value={user?.username} onSave={v => save({ username: v })} placeholder="manuel_99" />
-        </View>
+        <SectionLabel>Profil</SectionLabel>
+        <Surface style={{ marginHorizontal: S.md, padding: 0, overflow: 'hidden' }}>
+          <FieldRow icon="user" label="Anzeigename" value={user?.displayName} onSave={v => save({ displayName: v })} placeholder="Manuel" autoCapitalize="words" />
+          <FieldRow icon="at-sign" label="Username" value={user?.username} onSave={v => save({ username: v })} placeholder="manuel_99" last />
+        </Surface>
+
+        {/* Sicherheit */}
+        <SectionLabel>Sicherheit</SectionLabel>
+        <Surface style={{ marginHorizontal: S.md, padding: 0, overflow: 'hidden' }}>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: S.md, paddingVertical: 12 }}
+            onPress={() => setShowPwModal(true)}
+          >
+            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="lock" size={16} color={C.textSecondary} />
+            </View>
+            <Text style={[T.body, { flex: 1, color: C.text }]}>Passwort ändern</Text>
+            <Feather name="chevron-right" size={16} color={C.textTertiary} />
+          </TouchableOpacity>
+        </Surface>
 
         {/* Haushalt */}
-        <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: 6 }]}>Haushalt</Text>
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          {/* Eigener Code */}
-          <View style={{ padding: S.lg, alignItems: 'center' }}>
-            <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }]}>Dein Einladungscode</Text>
-            <Text style={{ color: C.text, fontSize: 36, fontWeight: '800', letterSpacing: 10, marginBottom: 6 }}>{user?.inviteCode || '——'}</Text>
-            <Text style={[T.caption, { color: C.textTertiary, textAlign: 'center', marginBottom: S.md }]}>Teile diesen Code, um andere in deinen Haushalt einzuladen</Text>
+        <SectionLabel>Haushalt</SectionLabel>
+        <Surface style={{ marginHorizontal: S.md, padding: 0, overflow: 'hidden' }}>
+          {/* Eigener Code als "Ticket" */}
+          <View style={{ padding: S.md, alignItems: 'center' }}>
+            <View style={{ alignSelf: 'stretch', alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.borderStrong, borderRadius: R.md, paddingVertical: S.md, backgroundColor: C.bgSecondary }}>
+              <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }]}>Dein Einladungscode</Text>
+              <Text style={{ color: C.text, fontSize: 32, fontWeight: '800', letterSpacing: 8 }}>{user?.inviteCode || '——'}</Text>
+            </View>
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.full }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.full, marginTop: S.sm }}
               onPress={shareInviteCode}
             >
               <Feather name="share-2" size={15} color={C.accentText} />
@@ -232,11 +215,11 @@ export default function KontoScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Surface>
 
         {/* Küchenausstattung */}
-        <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: 6 }]}>Küchenausstattung</Text>
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: S.md }}>
+        <SectionLabel>Küchenausstattung</SectionLabel>
+        <Surface style={{ marginHorizontal: S.md }}>
           <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.md }]}>
             Welche Geräte habt ihr im Haushalt? Die KI berücksichtigt das bei der Rezeptplanung.
           </Text>
@@ -315,22 +298,7 @@ export default function KontoScreen({ navigation }) {
               {equipment.length} Gerät{equipment.length !== 1 ? 'e' : ''} ausgewählt
             </Text>
           )}
-        </View>
-
-        {/* Sicherheit */}
-        <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: 6 }]}>Sicherheit</Text>
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 14 }}
-            onPress={() => setShowPwModal(true)}
-          >
-            <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="lock" size={15} color={C.textSecondary} />
-            </View>
-            <Text style={[T.body, { flex: 1, color: C.text }]}>Passwort ändern</Text>
-            <Feather name="chevron-right" size={16} color={C.textTertiary} />
-          </TouchableOpacity>
-        </View>
+        </Surface>
 
       </ScrollView>
 
