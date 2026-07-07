@@ -252,6 +252,7 @@ function ProfilStack() {
       <Stack.Screen name="ConnectedApps" component={ConnectedAppsScreen} />
       <Stack.Screen name="Koerper" component={KoerperScreen} />
       <Stack.Screen name="ProgressPhotos" component={ProgressPhotosScreen} />
+      <Stack.Screen name="ProgressCompare" component={require('./src/screens/ProgressCompareScreen').default} options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="Sportprofil" component={SportprofilScreen} />
       <Stack.Screen name="Einstellungen" component={EinstellungenScreen} />
       <Stack.Screen name="Konto" component={KontoScreen} />

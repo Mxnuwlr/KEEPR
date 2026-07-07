@@ -241,6 +241,15 @@ export default function ProgressPhotosScreen({ navigation }) {
             {progressAnalysis.estimates?.koerperfett_aktuell ? (
               <Text style={[T.caption, { color: C.text, marginTop: 4 }]}>KF-Schätzung: {progressAnalysis.estimates.koerperfett_aktuell} <Text style={{ color: C.warning }}>(ungenau)</Text></Text>
             ) : null}
+            {Array.isArray(progressAnalysis.regionen) && progressAnalysis.regionen.length > 0 && (
+              <TouchableOpacity
+                onPress={() => navigation?.navigate('ProgressCompare')}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.tint + '14', borderRadius: R.sm, paddingVertical: 9, marginTop: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}
+              >
+                <Feather name="crosshair" size={14} color={C.tint} />
+                <Text style={[T.caption, { color: C.tint, fontWeight: '700' }]}>Regionen-Vergleich mit Zoom ansehen</Text>
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         )}
 
@@ -398,6 +407,16 @@ export default function ProgressPhotosScreen({ navigation }) {
                     {progressAnalysis.estimates.koerperfett_trend ? <Text style={[T.caption, { color: C.textSecondary, marginBottom: 2 }]}>KF-Trend: {progressAnalysis.estimates.koerperfett_trend}</Text> : null}
                     {progressAnalysis.estimates.muskelmasse_trend ? <Text style={[T.caption, { color: C.textSecondary }]}>Muskeln: {progressAnalysis.estimates.muskelmasse_trend}</Text> : null}
                   </View>
+                )}
+
+                {Array.isArray(progressAnalysis.regionen) && progressAnalysis.regionen.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => { setShowAnalysis(false); navigation?.navigate('ProgressCompare'); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.tint, borderRadius: R.md, padding: 13, marginTop: S.md }}
+                  >
+                    <Feather name="crosshair" size={16} color={C.tintText} />
+                    <Text style={[T.bodyMed, { color: C.tintText }]}>Regionen-Vergleich mit Zoom ansehen</Text>
+                  </TouchableOpacity>
                 )}
 
                 {progressAnalysis.disclaimer ? (

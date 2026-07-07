@@ -283,6 +283,31 @@ geführter Schritt-für-Schritt-Review → Speisekammer.
 - **Getestet (Wegwerf-User, echtes Kühlschrankfoto):** 5 Produkte, alle Boxen visuell korrekt
   (Zitrone/Hummus/Pesto/Gläser), Kategorien/MHD plausibel, Account-Cleanup 200.
 
+## Körper-Vergleich mit Region-Zoom (2026-07-07) ERLEDIGT
+Fortschrittsfoto-Analyse um **Körperregionen mit Bounding-Boxen** erweitert — gleiche
+Zoom-Mechanik wie der Kühlschrank-Scan, aber als Früher/Aktuell-Vergleich nebeneinander.
+- **Backend (deployed, Backup `server.js.bak.*`):** `POST /api/progress/analyze` Prompt liefert
+  zusätzlich `regionen: [{pose, name, box_alt?, box_neu, befund, trend}]` — 4–8 markante
+  Regionen (Schultern/Brust/Bauch/…), Boxen 0–1000 **pro Foto separat** (box_alt = FRÜHER,
+  box_neu = AKTUELL; Person kann anders stehen). Erster Check-in: nur box_neu, trend "start".
+  maxOutputTokens 1800→4096. Persistiert wie gehabt in `progress_analyses`.
+- **`src/components/RegionZoomImage.js`** — wiederverwendbare Zoom-Komponente: remotes Bild
+  (Image.getSize), contain-Fit, Boxen, animierter Fokus-Zoom (focus-Index, −1 = Übersicht).
+  Aus der FridgeScan-Mathe extrahiert (t = −boxCenter·s, Rand-Clamp, Border/scale).
+- **`src/screens/ProgressCompareScreen.js`** (Route `ProgressCompare`, fullScreenModal im
+  ProfilStack): Früher/Aktuell nebeneinander mit Datums-Labels, beide zoomen **synchron**
+  auf die jeweilige Region (jedes Bild seine eigene Box). Ablauf: Übersicht (nummerierte
+  Boxen, trend-farbig) → Region-Karten (Name, Pose, Trend-Badge besser/gleich/schlechter/
+  start, Befund, Zurück/Weiter) → Fazit (summary + KF-Schätzung + Disclaimer). Wechselt die
+  Pose zwischen Regionen, wechseln die Fotos mit. Einzelbild-Modus beim ersten Check-in.
+  Fotos kommen aus `store.progressPhotos` (ältestes/neuestes je Pose), kein eigener API-Call.
+- **Einstieg:** Button „Regionen-Vergleich mit Zoom ansehen" in der „Letzte Analyse"-Karte
+  + im Analyse-Bottom-Sheet (nur wenn `regionen` vorhanden — alte gespeicherte Analysen
+  haben keine → erst „KI-Analyse aktualisieren").
+- **Getestet (Wegwerf-User, 2 Physique-Fotos an 2 Daten):** 4 Regionen (Bizeps/Schultern/
+  Brust/Trizeps), alle Boxen gültig + visuell plausibel auf beiden Bildern, Trend + Befunde
+  sinnvoll, Account-Cleanup 200.
+
 ## Emoji-freie UI (2026-07-01)
 Alle pictographischen Emojis aus der UI entfernt → durch Feather / MaterialCommunityIcons
 ersetzt (professioneller Look). Shared Helper `muscleIcon(group)` in `data/exercises.js`
