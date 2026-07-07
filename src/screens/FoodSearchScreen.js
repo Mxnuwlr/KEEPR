@@ -1,9 +1,25 @@
+/**
+ * screens/FoodSearchScreen.js — Lebensmittelsuche & Eintrag
+ *
+ * Durchsucht Backend-Lebensmitteldatenbank (api.searchFood) und QUICK_ITEMS.
+ * Unterstützt auch Foto-Analyse via Gemini (analyzeFoodPhoto).
+ * Kann als eigenständiger Screen oder inline in CaloriesScreen eingebettet werden.
+ *
+ * QUICK_ITEMS — Häufige Lebensmittel mit vorkonfigurierten Portionen
+ * COUNTS — [1..9999] für Mengenauswahl via Picker
+ */
+
+// React/RN
 import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Modal, ScrollView, Alert } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+
+// Internal
 import { analyzeFoodPhoto, api } from '../api/client';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
@@ -99,7 +115,7 @@ export default function FoodSearchScreen({ visible, onClose, onSelect, mealType,
     const p = parseFloat(manualForm.protein) || 0;
     const c = parseFloat(manualForm.carbs) || 0;
     const f = parseFloat(manualForm.fat) || 0;
-    onSelect({ name: manualForm.name + ' ⚠️', calories: Math.round(p*4+c*4+f*9), protein: p, carbs: c, fat: f, amountG: parseFloat(manualForm.amount) || 100, mealType });
+    onSelect({ name: manualForm.name, calories: Math.round(p*4+c*4+f*9), protein: p, carbs: c, fat: f, amountG: parseFloat(manualForm.amount) || 100, mealType });
     reset();
   };
 
@@ -162,7 +178,8 @@ export default function FoodSearchScreen({ visible, onClose, onSelect, mealType,
         {photoComponents && !photoLoading && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: S.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: 4 }}>
-              <Text style={[T.bodyMed, { color: C.tint }]}>🤖 {photoComponents.name}</Text>
+              <Feather name="cpu" size={15} color={C.tint} />
+              <Text style={[T.bodyMed, { color: C.tint }]}>{photoComponents.name}</Text>
             </View>
             <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.md }]}>{photoComponents.components.length} Komponenten erkannt — einzeln oder gesamt eintragen</Text>
             {photoComponents.components.map((comp, i) => (
@@ -352,7 +369,7 @@ export default function FoodSearchScreen({ visible, onClose, onSelect, mealType,
               <Text style={[T.body, { color: C.tint }]}>Zurück</Text>
             </TouchableOpacity>
             <Text style={[T.h2, { color: C.text, marginBottom: 4 }]}>Manuell eintragen</Text>
-            <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.lg }]}>⚠️ Nicht verifiziert</Text>
+            <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.lg }]}>Nicht verifiziert</Text>
             <Text style={labelStyle}>Name *</Text>
             <TextInput style={[inputStyle, { marginBottom: S.md }]} value={manualForm.name} onChangeText={v => setManualForm(f => ({ ...f, name: v }))} placeholder="z.B. Omas Kuchen" placeholderTextColor={C.textTertiary} />
             <Text style={labelStyle}>Menge (g/ml)</Text>

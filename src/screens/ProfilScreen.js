@@ -1,10 +1,27 @@
+/**
+ * screens/ProfilScreen.js — Nutzerprofil & Sportprofil
+ *
+ * Zeigt Profil-Daten, Fitness-Level, Ziele und Pace-Ziele.
+ * Profilfoto: expo-image-picker → Upload via api.uploadProfilePhoto().
+ * secondsToPace() für lesbares Pace-Format (z.B. "4:30/km").
+ *
+ * GOAL_LABELS — Ziel-Schlüssel zu lesbaren Deutschen Labels
+ * FITNESS_LABELS — Fitness-Level Schlüssel zu Labels
+ * SectionHeader — Wiederverwendbare Sektion-Überschrift
+ */
+
+// React/RN
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
-import { api, BASE_URL, secondsToPace } from '../api/client';
+import { api, getBaseUrl, secondsToPace } from '../api/client';
 
 const GOAL_LABELS = { lose: 'Abnehmen', maintain: 'Halten', gain: 'Zunehmen', muscle: 'Muskelaufbau', fitness: 'Fitness', ironman: 'Ironman', race: 'Wettkampf' };
 const FITNESS_LABELS = { beginner: 'Anfänger', intermediate: 'Fortgeschritten', advanced: 'Fortgeschritten+', elite: 'Elite' };
@@ -111,7 +128,7 @@ export default function ProfilScreen({ navigation }) {
               {avatarLoading
                 ? <ActivityIndicator color={C.tint} />
                 : user?.avatarPath
-                  ? <Image source={{ uri: `${BASE_URL}${user.avatarPath}` }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                  ? <Image source={{ uri: `${getBaseUrl()}${user.avatarPath}` }} style={{ width: 72, height: 72, borderRadius: 36 }} />
                   : <Text style={{ color: C.tint, fontSize: 28, fontWeight: '700' }}>{initials}</Text>
               }
             </View>
@@ -159,41 +176,27 @@ export default function ProfilScreen({ navigation }) {
       {/* ── Mein Profil ── */}
       <SectionHeader title="Mein Profil" />
       <SectionCard>
-        <MenuRow icon="user" label="Konto bearbeiten" value={user?.username} onPress={() => navigation.navigate('Konto')} />
+        <MenuRow icon="user" label="Konto & Profil" value={user?.username} onPress={() => navigation.navigate('Konto')} />
         <Divider />
-        <MenuRow icon="activity" label="Körper & Gesundheit" value={user?.weight ? `${user.weight} kg` : undefined} onPress={() => navigation.navigate('Koerper')} />
+        <MenuRow icon="activity" label="Körper, Ernährung & Ziele" value={user?.weight ? `${user.weight} kg · ${user.calorieGoal || '–'} kcal` : undefined} onPress={() => navigation.navigate('Koerper')} />
         <Divider />
         <MenuRow icon="zap" label="Sportprofil" value={user?.fitnessLevel ? FITNESS_LABELS[user.fitnessLevel] : undefined} onPress={() => navigation.navigate('Sportprofil')} />
         <Divider />
         <MenuRow icon="award" label="Ziele & Wettkämpfe" onPress={() => navigation.navigate('Goals')} />
       </SectionCard>
 
-      {/* ── Ernährung ── */}
-      <SectionHeader title="Ernährung" />
-      <SectionCard>
-        <MenuRow icon="target" label="Kalorienziel" value={user?.calorieGoal ? `${user.calorieGoal} kcal` : undefined} onPress={() => navigation.navigate('Koerper')} />
-        <Divider />
-        <MenuRow icon="pie-chart" label="Makroziele" value={user?.proteinGoal ? `P ${user.proteinGoal}g` : undefined} onPress={() => navigation.navigate('Koerper')} />
-        <Divider />
-        <MenuRow icon="coffee" label="Ernährungsweise" value={user?.dietType ? { omnivore: 'Alles', vegetarian: 'Vegetarisch', vegan: 'Vegan', pescatarian: 'Pescetarisch', keto: 'Keto', paleo: 'Paleo' }[user.dietType] : undefined} onPress={() => navigation.navigate('Koerper')} />
-      </SectionCard>
-
-      {/* ── Daten & Verbindungen ── */}
-      <SectionHeader title="Daten & Verbindungen" />
+      {/* ── Verbindungen ── */}
+      <SectionHeader title="Verbindungen" />
       <SectionCard>
         <MenuRow icon="link" label="Verbundene Apps" onPress={() => navigation.navigate('ConnectedApps')} />
         <Divider />
-        <MenuRow icon="home" label="Haushalt" value={user?.inviteCode || undefined} onPress={() => navigation.navigate('Konto')} />
+        <MenuRow icon="home" label="Haushalt" value={user?.inviteCode || undefined} onPress={() => navigation.navigate('Household')} />
       </SectionCard>
 
       {/* ── App ── */}
       <SectionHeader title="App" />
       <SectionCard>
         <MenuRow icon="settings" label="Einstellungen" onPress={() => navigation.navigate('Einstellungen')} />
-        <Divider />
-        <MenuRow icon="bell" label="Benachrichtigungen" onPress={() => navigation.navigate('Einstellungen')} />
-        <Divider />
-        <MenuRow icon="shield" label="Datenschutz" onPress={() => navigation.navigate('Einstellungen')} />
         <Divider />
         <MenuRow icon="info" label="Über keepr" value="v1.0" onPress={() => navigation.navigate('Einstellungen')} />
       </SectionCard>

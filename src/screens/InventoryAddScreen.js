@@ -1,7 +1,24 @@
+/**
+ * screens/InventoryAddScreen.js — Artikel hinzufügen / bearbeiten
+ *
+ * Formular zum Anlegen oder Bearbeiten eines Inventar-Artikels.
+ * Wird mit route.params.item für Bearbeitung aufgerufen (item === undefined → Neu).
+ *
+ * CATEGORIES — Auswahlmöglichkeiten für Kategorie
+ * UNITS — Auswahlmöglichkeiten für Einheit (Stück, g, kg, ml …)
+ *
+ * Speichert via addItem() oder updateItem() aus useStore().
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 
@@ -18,10 +35,10 @@ export default function InventoryAddScreen({ route, navigation }) {
     qtyNum: item ? (item.qty?.split(' ')[0] || '1') : '1',
     qtyUnit: item ? (item.qty?.split(' ').slice(1).join(' ') || 'Stück') : 'Stück',
     category: item?.category || 'Sonstiges',
-    caloriesPer100g: item?.calories_per_100g?.toString() || '',
-    proteinPer100g: item?.protein_per_100g?.toString() || '',
-    carbsPer100g: item?.carbs_per_100g?.toString() || '',
-    fatPer100g: item?.fat_per_100g?.toString() || '',
+    caloriesPer100g: (item?.calories_per_100g ?? item?.caloriesPer100g)?.toString() || '',
+    proteinPer100g: (item?.protein_per_100g ?? item?.proteinPer100g)?.toString() || '',
+    carbsPer100g: (item?.carbs_per_100g ?? item?.carbsPer100g)?.toString() || '',
+    fatPer100g: (item?.fat_per_100g ?? item?.fatPer100g)?.toString() || '',
   });
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -40,8 +57,9 @@ export default function InventoryAddScreen({ route, navigation }) {
         carbsPer100g: parseFloat(form.carbsPer100g) || null,
         fatPer100g: parseFloat(form.fatPer100g) || null,
       };
-      if (item) await updateItem(item.id, data);
+      if (item?.id) await updateItem(item.id, data);
       else await addItem(data);
+      if (route.params?.onSaved) route.params.onSaved();
       navigation.goBack();
     } catch(e) { Alert.alert('Fehler', e.message); }
   };
@@ -60,7 +78,7 @@ export default function InventoryAddScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[T.body, { color: C.textSecondary }]}>Abbrechen</Text>
         </TouchableOpacity>
-        <Text style={[T.bodyMed, { color: C.text }]}>{item ? 'Bearbeiten' : 'Hinzufügen'}</Text>
+        <Text style={[T.bodyMed, { color: C.text }]}>{item?.id ? 'Bearbeiten' : 'Hinzufügen'}</Text>
         <TouchableOpacity onPress={save}>
           <Text style={[T.bodyMed, { color: C.tint }]}>Speichern</Text>
         </TouchableOpacity>

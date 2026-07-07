@@ -1,21 +1,26 @@
 {
   "expo": {
     "name": "keepr",
-    "slug": "keepr",
+    "slug": "speisekammer-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1C1B1A"
     },
+    "scheme": "keepr",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.manuel.keepr",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "keepr benötigt die Kamera zum Scannen von Barcodes und Kassenzetteln.",
+        "NSPhotoLibraryUsageDescription": "keepr benötigt Zugriff auf deine Fotos zum Hochladen von Rezeptbildern und Profil-Fotos.",
+        "NSPhotoLibraryAddUsageDescription": "keepr möchte Fotos speichern.",
+        "NSMicrophoneUsageDescription": "keepr benötigt das Mikrofon für die Kamerafunktion."
       }
     },
     "android": {
@@ -25,15 +30,44 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.manuel.keepr"
+      "package": "com.manuel.keepr",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a44a6fdb-8c4b-441f-bbf8-6036f8513d15"
     },
     "extra": {
       "eas": {
         "projectId": "a44a6fdb-8c4b-441f-bbf8-6036f8513d15"
       }
-    }
+    },
+    "plugins": [
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "keepr benötigt die Kamera zum Scannen von Barcodes und Kassenzetteln."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "keepr benötigt Zugriff auf deine Fotos zum Hochladen von Bildern.",
+          "cameraPermission": "keepr benötigt die Kamera für Fotos."
+        }
+      ],
+      "expo-video"
+    ]
   }
 }

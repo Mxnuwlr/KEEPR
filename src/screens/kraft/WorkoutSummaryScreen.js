@@ -1,9 +1,26 @@
+/**
+ * screens/kraft/WorkoutSummaryScreen.js — Workout-Zusammenfassung
+ *
+ * Wird nach dem Beenden eines Workouts angezeigt (LiveWorkout → WorkoutSummary).
+ * Zeigt Statistiken, MuscleMap und Übungsübersicht. Erlaubt Notizen vor dem Speichern.
+ *
+ * muscleCounts Format: { [muscle]: { primary: n, secondary: m } }
+ * Gleiche Aggregationslogik wie in LiveWorkoutScreen.
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Internal
 import { useTheme } from '../../theme';
 import { useKraftStore } from '../../store/kraftStore';
+import { EXERCISES } from '../../data/exercises';
+import MuscleMap from '../../components/MuscleMap';
 
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
@@ -33,6 +50,30 @@ export default function WorkoutSummaryScreen({ navigation, route }) {
   const totalVolume = workout.exercises?.reduce((acc, ex) =>
     acc + ex.sets.filter(s => s.completed).reduce((a, s) => a + (parseFloat(s.weight_kg) || 0) * (parseInt(s.reps) || 0), 0), 0) || 0;
 
+  // Specific sub-muscle level (primary/secondary) — same logic as live workout
+  const workedMuscles = {};
+  workout.exercises?.forEach(ex => {
+    if (!ex.sets.some(s => s.completed)) return;
+    const dbEx = EXERCISES.find(e => e.id === ex.exerciseId);
+    const muscles = dbEx?.worked_muscles || (ex.muscle_group ? { [ex.muscle_group]: 'primary' } : {});
+    Object.entries(muscles).forEach(([m, lvl]) => {
+      if (!workedMuscles[m] || lvl === 'primary') workedMuscles[m] = lvl;
+    });
+  });
+
+  // Per-muscle set counts — tracked separately for primary and secondary
+  const muscleCounts = {};
+  workout.exercises?.forEach(ex => {
+    const done = ex.sets.filter(s => s.completed).length;
+    if (!done) return;
+    const dbEx = EXERCISES.find(e => e.id === ex.exerciseId);
+    const muscles = dbEx?.worked_muscles || (ex.muscle_group ? { [ex.muscle_group]: 'primary' } : {});
+    Object.entries(muscles).forEach(([m, lvl]) => {
+      if (!muscleCounts[m]) muscleCounts[m] = { primary: 0, secondary: 0 };
+      muscleCounts[m][lvl === 'primary' ? 'primary' : 'secondary'] += done;
+    });
+  });
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -47,26 +88,36 @@ export default function WorkoutSummaryScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ paddingTop: insets.top + S.sm, paddingHorizontal: S.md, paddingBottom: S.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
-        <Text style={[T.h2, { color: C.text, textAlign: 'center' }]}>Workout abgeschlossen</Text>
-      </View>
+      <ScrollView contentContainerStyle={{ padding: S.md, paddingTop: insets.top + S.sm, paddingBottom: insets.bottom + 100 }}>
 
-      <ScrollView contentContainerStyle={{ padding: S.md, paddingBottom: insets.bottom + 100 }}>
-        <Text style={[T.h1, { color: C.text, textAlign: 'center', marginBottom: S.xs }]}>{workout.routineName || 'Workout'}</Text>
+        {/* Celebration Header */}
+        <View style={{ alignItems: 'center', paddingVertical: S.lg }}>
+          <MaterialCommunityIcons name="trophy" size={52} color="#E8C547" />
+          <Text style={{ color: C.text, fontWeight: '800', fontSize: 24, marginTop: S.sm, textAlign: 'center' }}>Workout abgeschlossen!</Text>
+          <Text style={{ color: C.textSecondary, fontSize: 14, marginTop: 4 }}>{workout.routineName || 'Workout'}</Text>
+        </View>
 
         {/* Stats */}
         <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.md }}>
           {[
-            { label: 'Dauer', value: formatDuration(workout.elapsedSeconds || 0) },
-            { label: 'Volumen', value: `${Math.round(totalVolume)} kg` },
-            { label: 'Sätze', value: String(completedSets) },
+            { label: 'DAUER', value: formatDuration(workout.elapsedSeconds || 0) },
+            { label: 'VOLUMEN', value: `${Math.round(totalVolume)} kg` },
+            { label: 'SÄTZE', value: String(completedSets) },
           ].map(({ label, value }) => (
-            <View key={label} style={{ flex: 1, backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, alignItems: 'center' }}>
-              <Text style={{ color: C.textSecondary, fontSize: 12 }}>{label}</Text>
-              <Text style={{ color: C.text, fontWeight: '700', fontSize: 18 }}>{value}</Text>
+            <View key={label} style={{ flex: 1, backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <Text style={{ color: C.textTertiary, fontSize: 11, fontWeight: '700', marginBottom: 4 }}>{label}</Text>
+              <Text style={{ color: C.text, fontWeight: '800', fontSize: 22 }}>{value}</Text>
             </View>
           ))}
         </View>
+
+        {/* Muscle Map */}
+        {Object.keys(workedMuscles).length > 0 && (
+          <View style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.md, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+            <Text style={{ color: C.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.sm }}>BEANSPRUCHTE MUSKELN</Text>
+            <MuscleMap workedMuscles={workedMuscles} muscleCounts={muscleCounts} colors={C} />
+          </View>
+        )}
 
         {/* Exercise summary */}
         {workout.exercises?.filter(ex => ex.sets.some(s => s.completed)).map((ex, i) => (

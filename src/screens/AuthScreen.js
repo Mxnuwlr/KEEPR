@@ -1,17 +1,31 @@
+/**
+ * screens/AuthScreen.js — Login / Registrierung
+ *
+ * Erster Screen nach dem Onboarding. Zeigt Feature-Highlights (FEATURES-Array)
+ * und Login/Registrierungs-Formular. Schaltet zwischen Login- und Register-Modus.
+ *
+ * Nach erfolgreicher Auth navigiert useStore().login() → HomeScreen via Navigator.
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 
 const FEATURES = [
-  { emoji: '🏋️', text: 'KI Trainingsplan' },
-  { emoji: '📊', text: 'Ernährung tracken' },
-  { emoji: '📅', text: 'Wettkampfplanung' },
-  { emoji: '🔗', text: 'Strava & Garmin' },
+  { icon: 'activity', text: 'KI Trainingsplan' },
+  { icon: 'bar-chart-2', text: 'Ernährung tracken' },
+  { icon: 'calendar', text: 'Wettkampfplanung' },
+  { icon: 'link', text: 'Strava & Garmin' },
 ];
 
 function InputField({ label, value, onChange, placeholder, secure, autoCapitalize }) {
@@ -63,7 +77,7 @@ export default function AuthScreen() {
 
   const handleRegister = async () => {
     if (!username.trim() || !password.trim()) return Alert.alert('Fehler', 'Username und Passwort erforderlich.');
-    if (password.length < 6) return Alert.alert('Fehler', 'Passwort muss mindestens 6 Zeichen haben.');
+    if (password.length < 8) return Alert.alert('Fehler', 'Passwort muss mindestens 8 Zeichen haben.');
     try { await register(username.trim(), password, displayName.trim() || username.trim(), householdName.trim() || `${username.trim()}s Haushalt`); }
     catch (e) { Alert.alert('Registrierung fehlgeschlagen', e.message); }
   };
@@ -92,7 +106,7 @@ export default function AuthScreen() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: S.sm }}>
             {FEATURES.map(f => (
               <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.full, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-                <Text style={{ fontSize: 13 }}>{f.emoji}</Text>
+                <Feather name={f.icon} size={13} color={C.textSecondary} />
                 <Text style={[T.label, { color: C.textSecondary }]}>{f.text}</Text>
               </View>
             ))}
@@ -197,7 +211,7 @@ export default function AuthScreen() {
           </View>
         )}
 
-        <Text style={[T.caption, { color: C.textTertiary, textAlign: 'center', marginTop: S.lg }]}>keepr v1.0 · Made with ❤️</Text>
+        <Text style={[T.caption, { color: C.textTertiary, textAlign: 'center', marginTop: S.lg }]}>keepr v1.0</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );

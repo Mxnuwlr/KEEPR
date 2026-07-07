@@ -1,7 +1,23 @@
+/**
+ * screens/KontoScreen.js — Kontoverwaltung & Profil-Einstellungen
+ *
+ * Zeigt und bearbeitet Benutzerprofil-Daten (Name, E-Mail, etc.).
+ * Share-Funktion für Einladungslinks. Logout-Option.
+ *
+ * Field — Inline-editierbares Feld (identisches Pattern wie KoerperScreen)
+ * AsyncStorage: Gemini-Key wird hier ggf. gelöscht beim Logout
+ */
+
+// React/RN
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, Share } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, Share, Modal, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Internal
+import { setSecureItem } from '../utils/secureStorage';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { api } from '../api/client';
@@ -60,6 +76,27 @@ export default function KontoScreen({ navigation }) {
   const setUser = useStore(s => s.setUser);
   const [joinCode, setJoinCode] = useState('');
   const [joining, setJoining] = useState(false);
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!curPw || !newPw) return Alert.alert('Fehler', 'Bitte beide Felder ausfüllen.');
+    if (newPw.length < 8) return Alert.alert('Fehler', 'Neues Passwort muss mindestens 8 Zeichen haben.');
+    setPwSaving(true);
+    try {
+      const res = await api.changePassword(curPw, newPw);
+      // Backend gibt neues Token (alte Sessions werden ungültig) — hier speichern
+      if (res?.token) { await setSecureItem('auth_token', res.token); }
+      setShowPwModal(false); setCurPw(''); setNewPw('');
+      Alert.alert('Erledigt', 'Dein Passwort wurde geändert. Andere Geräte wurden abgemeldet.');
+    } catch (e) {
+      Alert.alert('Fehler', e.message || 'Passwort konnte nicht geändert werden.');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const save = async (updates) => {
     try { await updateProfile({ ...user, ...updates }); } catch(e) { Alert.alert('Fehler', e.message); }
@@ -73,7 +110,7 @@ export default function KontoScreen({ navigation }) {
       const result = await api.joinHousehold(code);
       // Backend returns a new JWT with updated householdId — store it
       if (result?.token) {
-        await AsyncStorage.setItem('auth_token', result.token);
+        await setSecureItem('auth_token', result.token);
       }
       const profile = await api.getProfile();
       const updated = { ...user, ...profile };
@@ -289,7 +326,7 @@ export default function KontoScreen({ navigation }) {
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
           <TouchableOpacity
             style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 14 }}
-            onPress={() => Alert.alert('Passwort ändern', 'Diese Funktion wird bald verfügbar sein.')}
+            onPress={() => setShowPwModal(true)}
           >
             <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center' }}>
               <Feather name="lock" size={15} color={C.textSecondary} />
@@ -300,6 +337,41 @@ export default function KontoScreen({ navigation }) {
         </View>
 
       </ScrollView>
+
+      {/* Passwort ändern Modal */}
+      <Modal visible={showPwModal} transparent animationType="fade" onRequestClose={() => setShowPwModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{ flex: 1, backgroundColor: '#00000066', justifyContent: 'center', padding: S.lg }}>
+            <View style={{ backgroundColor: C.bg, borderRadius: R.xl, padding: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.md }}>
+                <Text style={[T.h3, { color: C.text }]}>Passwort ändern</Text>
+                <TouchableOpacity onPress={() => setShowPwModal(false)} hitSlop={8}>
+                  <Feather name="x" size={20} color={C.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[T.label, { color: C.textTertiary, marginBottom: 6 }]}>AKTUELLES PASSWORT</Text>
+              <TextInput
+                style={{ backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.md, color: C.text, fontSize: 15, padding: S.md, marginBottom: S.md }}
+                value={curPw} onChangeText={setCurPw} placeholder="••••••••" placeholderTextColor={C.textTertiary} secureTextEntry autoCapitalize="none"
+              />
+              <Text style={[T.label, { color: C.textTertiary, marginBottom: 6 }]}>NEUES PASSWORT</Text>
+              <TextInput
+                style={{ backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.md, color: C.text, fontSize: 15, padding: S.md, marginBottom: S.lg }}
+                value={newPw} onChangeText={setNewPw} placeholder="mindestens 8 Zeichen" placeholderTextColor={C.textTertiary} secureTextEntry autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={handleChangePassword}
+                disabled={pwSaving}
+                style={{ backgroundColor: C.accent, borderRadius: R.md, padding: S.md, alignItems: 'center', opacity: pwSaving ? 0.6 : 1 }}
+              >
+                {pwSaving
+                  ? <ActivityIndicator size="small" color={C.accentText} />
+                  : <Text style={[T.bodyMed, { color: C.accentText, fontWeight: '700' }]}>Passwort ändern</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

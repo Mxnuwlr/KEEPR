@@ -1,9 +1,25 @@
+/**
+ * screens/KoerperScreen.js — Körperdaten & Gewichtstracking
+ *
+ * Zeigt Gewichtsverlauf, Körperfettanteil und weitere Körpermaße.
+ * Einträge werden via api.getWeightHistory() / api.logWeight() gespeichert.
+ *
+ * Field — Inline-editierbares Feld (Tap zum Bearbeiten, Blur/Enter zum Speichern)
+ */
+
+// React/RN
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, Dimensions } from 'react-native';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { api } from '../api/client';
+import { calcCalorieGoalFromProfile, getSmoothedWeight } from '../utils/coaching';
+import LineChart from '../components/LineChart';
 
 function Field({ label, value, onSave, placeholder, unit, numeric }) {
   const { colors: C, type: T, radius: R } = useTheme();
@@ -40,9 +56,11 @@ function Field({ label, value, onSave, placeholder, unit, numeric }) {
 
 export default function KoerperScreen({ navigation }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
-  const { user, updateProfile } = useStore();
+  const { user, updateProfile, weightAnalysis } = useStore();
   const [weightHistory, setWeightHistory] = useState([]);
   const [logWeight, setLogWeight] = useState('');
+  const [logBodyFat, setLogBodyFat] = useState('');
+  const [logMuscle, setLogMuscle] = useState('');
   const [logging, setLogging] = useState(false);
 
   useEffect(() => { loadHistory(); }, []);
@@ -50,7 +68,8 @@ export default function KoerperScreen({ navigation }) {
   const loadHistory = async () => {
     try {
       const data = await api.getWeightHistory?.();
-      if (Array.isArray(data)) setWeightHistory(data.slice(-14));
+      // chronologisch (älteste zuerst) für die Verlaufskurven
+      if (Array.isArray(data)) setWeightHistory(data.slice().reverse().slice(-30));
     } catch(e) {}
   };
 
@@ -60,14 +79,18 @@ export default function KoerperScreen({ navigation }) {
 
   const addWeightEntry = async () => {
     const w = parseFloat(logWeight.replace(',', '.'));
-    if (!w || w < 20 || w > 300) return Alert.alert('Ungültiger Wert');
+    if (!w || w < 20 || w > 300) return Alert.alert('Ungültiges Gewicht');
+    const bf = logBodyFat ? parseFloat(logBodyFat.replace(',', '.')) : null;
+    const mm = logMuscle ? parseFloat(logMuscle.replace(',', '.')) : null;
+    if (bf != null && (bf < 3 || bf > 60)) return Alert.alert('Ungültiger KF-Wert', 'Körperfett in % (z.B. 18).');
+    if (mm != null && (mm < 10 || mm > 120)) return Alert.alert('Ungültiger Muskelwert', 'Muskelmasse in kg.');
     setLogging(true);
     try {
-      await api.logWeight?.({ weight: w, date: new Date().toISOString().split('T')[0] });
-      await save({ weight: w });
-      setLogWeight('');
+      await api.addWeight({ weight: w, date: new Date().toISOString().split('T')[0], bodyFat: bf, muscleMass: mm });
+      await save({ weight: w, ...(bf != null ? { bodyFat: bf } : {}), ...(mm != null ? { muscleMass: mm } : {}) });
+      setLogWeight(''); setLogBodyFat(''); setLogMuscle('');
       await loadHistory();
-      Alert.alert('Gespeichert', `${w} kg eingetragen.`);
+      Alert.alert('Gespeichert', `${w} kg${bf != null ? ` · ${bf} % KF` : ''}${mm != null ? ` · ${mm} kg Muskeln` : ''} eingetragen.`);
     } catch(e) { Alert.alert('Fehler', e.message); }
     setLogging(false);
   };
@@ -121,8 +144,24 @@ export default function KoerperScreen({ navigation }) {
           </>
         )}
 
-        {/* Gewicht eintragen */}
-        {sectionLabel('Gewicht eintragen')}
+        {/* Fortschrittsfotos */}
+        {sectionLabel('Fortschritt')}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ProgressPhotos')}
+          style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, flexDirection: 'row', alignItems: 'center', gap: S.md }}
+        >
+          <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: C.accent + '18', alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="camera" size={20} color={C.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[T.body, { color: C.text, fontWeight: '600' }]}>Fortschrittsfotos</Text>
+            <Text style={[T.caption, { color: C.textSecondary }]}>Alle 4 Wochen · 4 Posen · Vergleich über die Zeit</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={C.textTertiary} />
+        </TouchableOpacity>
+
+        {/* Körperzusammensetzung */}
+        {sectionLabel('Körperzusammensetzung (z.B. Renpho)')}
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
           <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center' }}>
             <TextInput
@@ -142,13 +181,89 @@ export default function KoerperScreen({ navigation }) {
               <Text style={[T.bodyMed, { color: C.accentText }]}>Speichern</Text>
             </TouchableOpacity>
           </View>
+
+          {/* KF % + Muskel (optional, von der Renpho-Waage) */}
+          <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: S.md }}>
+              <TextInput
+                style={{ flex: 1, paddingVertical: 10, color: C.text, fontSize: 16, fontWeight: '600', textAlign: 'center' }}
+                value={logBodyFat} onChangeText={setLogBodyFat} keyboardType="decimal-pad"
+                placeholder={user?.bodyFat?.toString() || 'KF'} placeholderTextColor={C.textTertiary}
+              />
+              <Text style={[T.caption, { color: C.textSecondary }]}>% KF</Text>
+            </View>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: S.md }}>
+              <TextInput
+                style={{ flex: 1, paddingVertical: 10, color: C.text, fontSize: 16, fontWeight: '600', textAlign: 'center' }}
+                value={logMuscle} onChangeText={setLogMuscle} keyboardType="decimal-pad"
+                placeholder={user?.muscleMass?.toString() || 'Muskel'} placeholderTextColor={C.textTertiary}
+              />
+              <Text style={[T.caption, { color: C.textSecondary }]}>kg M.</Text>
+            </View>
+          </View>
+          <Text style={[T.caption, { color: C.textTertiary, marginTop: 6 }]}>Werte von deiner Renpho-Waage — KF & Muskel optional.</Text>
+
+          {weightHistory.length >= 2 && (() => {
+            const chartData = weightHistory.map((w, i) => ({
+              value: parseFloat(w.weight || w.value || 0),
+              label: i % Math.ceil(weightHistory.length / 5) === 0
+                ? (w.date || w.logged_at?.split('T')[0] || '').slice(5).replace('-', '.')
+                : '',
+            })).filter(d => d.value > 0);
+            const minW = Math.min(...chartData.map(d => d.value));
+            const maxW = Math.max(...chartData.map(d => d.value));
+            const trend = chartData.length >= 2 ? chartData[chartData.length - 1].value - chartData[0].value : 0;
+            const trendColor = trend < -0.1 ? C.success : trend > 0.1 ? C.danger : C.textSecondary;
+            const chartW = Dimensions.get('window').width - S.md * 2 - S.md * 2 - 2;
+            return (
+              <View style={{ marginTop: S.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.sm, marginBottom: S.sm }}>
+                  <Text style={[T.label, { color: C.textTertiary }]}>VERLAUF ({weightHistory.length} Einträge)</Text>
+                  <Text style={{ color: trendColor, fontSize: 12, fontWeight: '700' }}>
+                    {trend > 0.1 ? `+${trend.toFixed(1)}` : trend < -0.1 ? trend.toFixed(1) : '±0'} kg
+                  </Text>
+                </View>
+                <LineChart data={chartData} width={chartW} height={100} color={C.accent} colors={C} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>Min: {minW} kg</Text>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>Max: {maxW} kg</Text>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Körperfett-Verlauf (aus body_fat der Einträge, z.B. Renpho) */}
+          {(() => {
+            const kf = weightHistory.map((w) => ({ value: parseFloat(w.body_fat || 0), date: w.date })).filter((d) => d.value > 0);
+            if (kf.length < 2) return null;
+            const data = kf.map((d, i) => ({ value: d.value, label: i % Math.ceil(kf.length / 5) === 0 ? (d.date || '').slice(5).replace('-', '.') : '' }));
+            const minK = Math.min(...kf.map((d) => d.value));
+            const maxK = Math.max(...kf.map((d) => d.value));
+            const tr = kf[kf.length - 1].value - kf[0].value;
+            const trC = tr < -0.1 ? C.success : tr > 0.1 ? C.danger : C.textSecondary;
+            const chartW = Dimensions.get('window').width - S.md * 2 - S.md * 2 - 2;
+            return (
+              <View style={{ marginTop: S.lg }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.sm, marginBottom: S.sm }}>
+                  <Text style={[T.label, { color: C.textTertiary }]}>KÖRPERFETT-VERLAUF</Text>
+                  <Text style={{ color: trC, fontSize: 12, fontWeight: '700' }}>{tr > 0.1 ? `+${tr.toFixed(1)}` : tr < -0.1 ? tr.toFixed(1) : '±0'} %</Text>
+                </View>
+                <LineChart data={data} width={chartW} height={100} color={C.tint} colors={C} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>Min: {minK} %</Text>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>Max: {maxK} %</Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {weightHistory.length > 0 && (
             <View style={{ marginTop: S.md, gap: 6 }}>
               <Text style={[T.label, { color: C.textTertiary }]}>Letzte Einträge</Text>
               {weightHistory.slice(-5).reverse().map((w, i) => (
                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={[T.caption, { color: C.textSecondary }]}>{w.date || w.logged_at?.split('T')[0] || '—'}</Text>
-                  <Text style={[T.caption, { color: C.text, fontWeight: '600' }]}>{w.weight || w.value} kg</Text>
+                  <Text style={[T.caption, { color: C.text, fontWeight: '600' }]}>{w.weight || w.value} kg{w.body_fat ? ` · ${w.body_fat} %` : ''}</Text>
                 </View>
               ))}
             </View>
@@ -173,9 +288,9 @@ export default function KoerperScreen({ navigation }) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 }}>
             <Text style={[T.body, { color: C.textSecondary }]}>Geschlecht</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[['male', '♂'], ['female', '♀']].map(([id, ico]) => (
+              {[['male', 'gender-male'], ['female', 'gender-female']].map(([id, ico]) => (
                 <TouchableOpacity key={id} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.sm, backgroundColor: user?.gender === id ? C.accent : C.bgTertiary, borderWidth: StyleSheet.hairlineWidth, borderColor: user?.gender === id ? C.accent : C.border }} onPress={() => save({ gender: id })}>
-                  <Text style={{ color: user?.gender === id ? C.accentText : C.textSecondary, fontSize: 14 }}>{ico}</Text>
+                  <MaterialCommunityIcons name={ico} size={16} color={user?.gender === id ? C.accentText : C.textSecondary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -185,7 +300,13 @@ export default function KoerperScreen({ navigation }) {
         {/* Kalorienziele */}
         {sectionLabel('Kalorienziele')}
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <Field label="Kalorienziel" value={user?.calorieGoal} onSave={v => save({ calorieGoal: parseInt(v) || null })} placeholder="2000" unit="kcal" numeric />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[T.body, { color: C.textSecondary }]}>Kalorienziel</Text>
+              <Text style={[T.caption, { color: C.textTertiary, marginTop: 2 }]}>Automatisch aus Gewicht, Aktivität & Ziel</Text>
+            </View>
+            <Text style={[T.body, { color: C.text }]}>{calcCalorieGoalFromProfile({ ...user, weight: getSmoothedWeight(weightAnalysis, user) || user?.weight }) || user?.calorieGoal || 2000} kcal</Text>
+          </View>
           {divider}
           <Field label="Proteinziel" value={user?.proteinGoal} onSave={v => save({ proteinGoal: parseInt(v) || null })} placeholder="150" unit="g" numeric />
           {divider}

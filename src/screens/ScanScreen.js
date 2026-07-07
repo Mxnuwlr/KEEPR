@@ -1,20 +1,36 @@
+/**
+ * screens/ScanScreen.js — Kassenbon-Scanner & Inventar-Bulk-Import
+ *
+ * Zwei Modi:
+ *   - Kassenbon-Foto: analyzeReceiptWithGemini() → Produkt-Liste → bulkAddItems()
+ *   - Barcode-Scan: lookupBarcode() → InventoryAdd
+ *
+ * Foto-Auswahl via ImagePicker (Kamera oder Galerie).
+ * Base64-Kodierung via expo-file-system für Gemini-Upload.
+ */
+
+// React/RN
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+
+// Third-party
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Feather } from '@expo/vector-icons';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { analyzeReceiptWithGemini, lookupBarcode } from '../api/client';
 
 export default function ScanScreen({ navigation }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
-  const { geminiKey, bulkAddItems, addItem } = useStore();
+  const { geminiKey, bulkAddItems } = useStore();
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState(null);
   const [products, setProducts] = useState(null);
   const [tab, setTab] = useState('receipt');
-  const [editingIdx, setEditingIdx] = useState(null);
+  const [addedIndices, setAddedIndices] = useState(new Set());
 
   const runAnalysis = async (b64, mimeType, key) => {
     setScanning(true);
@@ -67,6 +83,7 @@ export default function ScanScreen({ navigation }) {
     const asset = result.assets[0];
     setPreview(asset.uri);
     setProducts(null);
+    setAddedIndices(new Set());
     const b64 = asset.base64 || await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
     const mimeType = asset.mimeType ||
       (asset.uri.match(/\.png$/i) ? 'image/png' :
@@ -74,34 +91,20 @@ export default function ScanScreen({ navigation }) {
     await runAnalysis(b64, mimeType, key);
   };
 
-  const updateProductQty = (idx, newQty) => {
-    setProducts(p => p.map((item, i) => i === idx ? { ...item, qty: newQty, unsicher: false } : item));
-  };
-
   const addAll = async () => {
     try {
-      const itemsToAdd = products.map(p => ({
-        ...p,
-        qty: totalQtyStr(p.qty, p.count),
-      }));
-      await bulkAddItems(itemsToAdd);
+      const itemsToAdd = products
+        .filter((_, i) => !addedIndices.has(i))
+        .map(p => ({ ...p, qty: totalQtyStr(p.qty, p.count) }));
+      if (itemsToAdd.length > 0) await bulkAddItems(itemsToAdd);
       setPreview(null);
       setProducts(null);
-      setEditingIdx(null);
+      setAddedIndices(new Set());
       navigation.goBack();
     } catch(e) {}
   };
 
-  const openBarcodeScanner = () => {
-    navigation.navigate('BarcodeScanner', {
-      onScanned: async (product) => {
-        try {
-          await addItem(product);
-          navigation.goBack();
-        } catch(e) {}
-      }
-    });
-  };
+  const openBarcodeScanner = () => navigation.navigate('BarcodeScanner');
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -111,7 +114,7 @@ export default function ScanScreen({ navigation }) {
 
       {/* Tabs */}
       <View style={{ flexDirection: 'row', marginHorizontal: S.md, marginBottom: S.lg, backgroundColor: C.surface, borderRadius: R.md, padding: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-        {[['receipt', 'Kassenzettel', 'file-text'], ['barcode', 'Barcode', 'maximize']].map(([t, label, icon]) => (
+        {[['receipt', 'Kassenzettel', 'file-text'], ['fridge', 'Kühlschrank', 'camera'], ['barcode', 'Barcode', 'maximize']].map(([t, label, icon]) => (
           <TouchableOpacity
             key={t}
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: R.sm, backgroundColor: tab === t ? C.tint : 'transparent' }}
@@ -181,58 +184,61 @@ export default function ScanScreen({ navigation }) {
                 </View>
               )}
               {products.map((p, i) => (
-                <View key={i} style={{ backgroundColor: C.surface, borderRadius: R.md, marginBottom: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: p.unsicher ? C.warning + '60' : C.border, overflow: 'hidden' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
-                    <Text style={{ fontSize: 22, marginRight: 10 }}>{p.emoji || '📦'}</Text>
+                <View key={i} style={{ backgroundColor: C.surface, borderRadius: R.md, marginBottom: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: p.unsicher && !addedIndices.has(i) ? C.warning + '60' : C.border }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
+                    <Feather name="package" size={20} color={C.textSecondary} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{p.name}</Text>
+                      <Text style={[T.bodyMed, { color: addedIndices.has(i) ? C.textTertiary : C.text }]} numberOfLines={1}>{p.name}</Text>
                       <Text style={[T.caption, { color: C.textTertiary, marginTop: 1 }]}>
-                        {p.caloriesPer100g ? `${p.caloriesPer100g} kcal/100g` : 'Kalorien unbekannt'} · MHD {p.mhd ? new Date(p.mhd).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '?'}
+                        {totalQtyStr(p.qty, p.count)} · {p.caloriesPer100g ? `${p.caloriesPer100g} kcal/100g` : 'kcal unbekannt'}
                       </Text>
                     </View>
-                    <TouchableOpacity
-                      onPress={() => setEditingIdx(editingIdx === i ? null : i)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: p.unsicher ? C.warning + '20' : C.bgSecondary, borderRadius: R.sm, paddingHorizontal: 8, paddingVertical: 5, borderWidth: StyleSheet.hairlineWidth, borderColor: p.unsicher ? C.warning + '50' : C.border }}
-                    >
-                      {p.unsicher && <Feather name="alert-circle" size={12} color={C.warning} />}
-                      {p.count > 1 && (
-                        <Text style={[T.caption, { color: C.tint, fontWeight: '700' }]}>{p.count}×</Text>
-                      )}
-                      <Text style={[T.caption, { color: p.unsicher ? C.warning : C.textSecondary, fontWeight: '600' }]}>
-                        {p.qty}{p.count > 1 ? ` = ${totalQtyStr(p.qty, p.count)}` : ''}
-                      </Text>
-                      <Feather name="edit-2" size={11} color={p.unsicher ? C.warning : C.textTertiary} />
-                    </TouchableOpacity>
-                  </View>
-                  {editingIdx === i && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: 12, paddingBottom: 130 }}>
-                      <TextInput
-                        style={{ flex: 1, backgroundColor: C.bg, borderRadius: R.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.accent, paddingHorizontal: 10, paddingVertical: 7, color: C.text, fontSize: 14 }}
-                        value={p.qty}
-                        onChangeText={v => updateProductQty(i, v)}
-                        placeholder="z.B. 500 g oder 6 Stück"
-                        placeholderTextColor={C.textTertiary}
-                        autoFocus
-                        returnKeyType="done"
-                        onSubmitEditing={() => setEditingIdx(null)}
-                      />
-                      <TouchableOpacity onPress={() => setEditingIdx(null)} style={{ backgroundColor: C.accent, borderRadius: R.sm, paddingHorizontal: 12, paddingVertical: 7 }}>
-                        <Text style={{ color: C.accentText, fontWeight: '700', fontSize: 13 }}>OK</Text>
+                    {addedIndices.has(i) ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.success + '20', borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Feather name="check" size={13} color={C.success} />
+                        <Text style={[T.caption, { color: C.success, fontWeight: '600' }]}>Hinzugefügt</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('InventoryAdd', {
+                          item: {
+                            name: p.name,
+                            qty: totalQtyStr(p.qty, p.count),
+                            mhd: p.mhd,
+                            category: p.category,
+                            caloriesPer100g: p.caloriesPer100g,
+                            proteinPer100g: p.proteinPer100g,
+                            carbsPer100g: p.carbsPer100g,
+                            fatPer100g: p.fatPer100g,
+                          },
+                          onSaved: () => setAddedIndices(prev => new Set([...prev, i])),
+                        })}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.accent, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 5 }}
+                      >
+                        {p.unsicher && <Feather name="alert-circle" size={12} color={C.accentText + 'cc'} />}
+                        <Feather name="plus" size={13} color={C.accentText} />
+                        <Text style={[T.caption, { color: C.accentText, fontWeight: '600' }]}>Übernehmen</Text>
                       </TouchableOpacity>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
               ))}
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 14, marginTop: S.md }}
-                onPress={addAll}
-              >
-                <Feather name="plus-circle" size={18} color={C.tintText} />
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Alle ins Inventar</Text>
-              </TouchableOpacity>
+              {products.filter((_, i) => !addedIndices.has(i)).length > 0 && (
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 14, marginTop: S.md }}
+                  onPress={addAll}
+                >
+                  <Feather name="plus-circle" size={18} color={C.tintText} />
+                  <Text style={[T.bodyMed, { color: C.tintText }]}>
+                    {addedIndices.size > 0
+                      ? `${products.filter((_, i) => !addedIndices.has(i)).length} verbleibende ins Inventar`
+                      : 'Alle ins Inventar'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 14, marginTop: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                onPress={() => { setPreview(null); setProducts(null); }}
+                onPress={() => { setPreview(null); setProducts(null); setAddedIndices(new Set()); }}
               >
                 <Feather name="refresh-cw" size={16} color={C.text} />
                 <Text style={[T.bodyMed, { color: C.text }]}>Neuer Scan</Text>
@@ -240,6 +246,33 @@ export default function ScanScreen({ navigation }) {
             </View>
           )}
         </>}
+
+        {/* Kühlschrank */}
+        {tab === 'fridge' && (
+          <View>
+            <TouchableOpacity
+              style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: 28, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}
+              onPress={() => navigation.navigate('FridgeScan')}
+              activeOpacity={0.8}
+            >
+              <View style={{ width: 88, height: 88, borderRadius: R.xl, backgroundColor: C.tint + '14', alignItems: 'center', justifyContent: 'center', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}>
+                <Feather name="camera" size={40} color={C.tint} />
+              </View>
+              <Text style={[T.h3, { color: C.text, marginBottom: S.sm, textAlign: 'center' }]}>Kühlschrank scannen</Text>
+              <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', lineHeight: 22 }]}>
+                Foto vom offenen Kühlschrank oder Vorratsschrank machen — die KI erkennt alle Lebensmittel und du gehst sie Schritt für Schritt durch.
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14, marginTop: S.lg }}>
+                <Feather name="camera" size={18} color={C.tintText} />
+                <Text style={[T.bodyMed, { color: C.tintText }]}>Scan starten</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <Feather name="info" size={15} color={C.textSecondary} />
+              <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 18 }]}>Jedes erkannte Produkt wird auf dem Foto markiert und herangezoomt — Name, Menge und MHD kannst du vor dem Übernehmen anpassen.</Text>
+            </View>
+          </View>
+        )}
 
         {/* Barcode */}
         {tab === 'barcode' && (

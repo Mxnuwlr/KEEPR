@@ -1,3 +1,17 @@
+/**
+ * DrumRollPicker.js — Scroll-basierter Auswahl-Picker (iOS-Drum-Roll-Style)
+ *
+ * Zeigt 5 Elemente gleichzeitig, das mittlere ist ausgewählt (highlight mit Rahmen).
+ * Snapped-Scrolling: einrasten an ITEM_HEIGHT-Intervallen.
+ * Keine externe Library — reines FlatList mit snapToInterval.
+ *
+ * Props:
+ *   values         {Array}     — Werte-Liste (any, toString() für Anzeige)
+ *   selectedValue  {any}       — Aktuell ausgewählter Wert
+ *   onValueChange  {function}  — Callback(newValue) bei Änderung
+ */
+
+// React/RN
 import React, { useRef, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 

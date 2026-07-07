@@ -1,16 +1,37 @@
+/**
+ * theme/index.js — Zentrales Design-System
+ *
+ * Exports:
+ *   spacing      — { xs, sm, md, lg, xl, xxl }
+ *   radius       — { sm, md, lg, xl, full }
+ *   type         — Typografie-Preset-Objekte (h1, h2, h3, body, bodyMed, caption, label)
+ *   ThemeProvider — Context-Provider für Light/Dark-Mode-Auswahl
+ *   useThemeMode  — Hook: { mode, setMode } — 'light'|'dark'|'system'
+ *   useTheme      — Hook: { colors, spacing, radius, type, isDark }
+ *
+ * Verwendung in Screens:
+ *   const { colors: C, spacing: S, radius: R, type: T, isDark } = useTheme();
+ *   // Immer C.bg, C.text, C.accent verwenden — niemals Farben hardcoden
+ */
+
+// React/RN
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+
+// Third-party
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ── Farbpaletten ──────────────────────────────────────────────────────────────
+
 const light = {
-  bg: '#FFFFFF',
-  bgSecondary: '#F7F7F5',
-  bgTertiary: '#EFEFED',
+  bg: '#F5F4F0',
+  bgSecondary: '#EEEDEA',
+  bgTertiary: '#E4E3DF',
   text: '#0A0A0A',
   textSecondary: '#6B6B6B',
   textTertiary: '#A8A8A8',
-  border: '#E8E8E6',
-  borderStrong: '#C8C8C6',
+  border: '#DDDCDA',
+  borderStrong: '#BDBBB9',
   accent: '#1A1A1A',
   accentText: '#FFFFFF',
   tint: '#E8C547',
@@ -18,8 +39,8 @@ const light = {
   success: '#16A34A',
   warning: '#D97706',
   danger: '#DC2626',
-  surface: '#FFFFFF',
-  surfaceRaised: '#F7F7F5',
+  surface: '#FAFAF8',
+  surfaceRaised: '#EEEDEA',
 };
 
 const dark = {
@@ -42,14 +63,19 @@ const dark = {
   surfaceRaised: '#242220',
 };
 
+// ── Design-Tokens ─────────────────────────────────────────────────────────────
+
+/** Abstands-Skala in Pixeln. */
 export const spacing = {
   xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48,
 };
 
+/** Border-Radius-Skala in Pixeln. */
 export const radius = {
   sm: 6, md: 10, lg: 16, xl: 24, full: 9999,
 };
 
+/** Typografie-Presets — als Style-Objekte verwendbar. */
 export const type = {
   h1: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   h2: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3 },
@@ -60,8 +86,15 @@ export const type = {
   label: { fontSize: 12, fontWeight: '600', letterSpacing: 0.4 },
 };
 
+// ── Theme Context ─────────────────────────────────────────────────────────────
+
 const ThemeContext = createContext({ mode: 'system', setMode: () => {} });
 
+/**
+ * ThemeProvider — Umschließt die App und stellt den Theme-Mode-Context bereit.
+ * Lädt den gespeicherten Mode aus AsyncStorage beim Startup.
+ * Muss in App.js als Root-Provider gesetzt sein.
+ */
 export function ThemeProvider({ children }) {
   const [mode, setModeState] = useState('system');
 
@@ -81,10 +114,20 @@ export function ThemeProvider({ children }) {
   );
 }
 
+/**
+ * useThemeMode — Liest und setzt den Theme-Mode ('light'|'dark'|'system').
+ * Für den Einstellungen-Screen.
+ */
 export function useThemeMode() {
   return useContext(ThemeContext);
 }
 
+/**
+ * useTheme — Haupt-Hook für alle Screens und Komponenten.
+ * Gibt die aktuell gültige Farbpalette + Design-Tokens zurück.
+ *
+ * @returns {{ colors: object, spacing: object, radius: object, type: object, isDark: boolean }}
+ */
 export function useTheme() {
   const scheme = useColorScheme();
   const { mode } = useContext(ThemeContext);

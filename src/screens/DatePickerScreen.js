@@ -1,5 +1,18 @@
+/**
+ * screens/DatePickerScreen.js — Datums-Picker Modal
+ *
+ * Leichtgewichtiger Modal-Screen für Datumsauswahl.
+ * Wird mit route.params { currentDate, onSelect } aufgerufen.
+ * onSelect(dateString) wird beim Bestätigen aufgerufen, dann goBack().
+ *
+ * Verwendet @react-native-community/datetimepicker (native iOS/Android Picker).
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+
+// Third-party
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function DatePickerScreen({ route, navigation }) {

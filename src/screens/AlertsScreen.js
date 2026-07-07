@@ -1,5 +1,21 @@
+/**
+ * screens/AlertsScreen.js — MHD-Warnungen
+ *
+ * Zeigt abgelaufene und bald ablaufende Artikel aus dem Inventar.
+ * Artikel können direkt von hier gelöscht werden.
+ *
+ * Hinweis: Verwendet eigene hardcodierte Farbpalette (C) statt useTheme(),
+ * da dieser Screen vor der Theme-Migration entstanden ist.
+ *
+ * getDays(mhd) < 0  → abgelaufen (rot)
+ * getDays(mhd) ≤ 5  → läuft bald ab (orange)
+ */
+
+// React/RN
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
+
+// Internal
 import { useStore } from '../store';
 
 const C = { bg: '#0f0e0c', surface: '#1a1916', border: '#2e2c29', text: '#f0ece3', text2: '#9b9489', text3: '#5c574f', red: '#e05252', orange: '#e08a3a' };
@@ -14,10 +30,10 @@ export default function AlertsScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 130 }}>
-      <Text style={styles.header}>⚠️ MHD-Warnungen</Text>
+      <Text style={styles.header}>MHD-Warnungen</Text>
       {expired.length === 0 && soon.length === 0 && (
         <View style={{ alignItems: 'center', marginTop: 60 }}>
-          <Text style={{ fontSize: 44 }}>✅</Text>
+          <Text style={{ fontSize: 44 }}></Text>
           <Text style={{ color: C.text3, marginTop: 10 }}>Alles frisch! Keine Warnungen.</Text>
         </View>
       )}

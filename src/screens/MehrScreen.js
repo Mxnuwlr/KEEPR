@@ -1,6 +1,21 @@
+/**
+ * screens/MehrScreen.js — "Mehr"-Tab (Einstellungen & Zusatzfunktionen)
+ *
+ * Übersichts-Tab mit Links zu weiteren Screens (Einstellungen, Verbundene Apps, etc.)
+ * und Kurzübersicht über ablaufende Inventarartikel.
+ *
+ * Hinweis: Verwendet eigene hardcodierte Farbpalette (C) statt useTheme(),
+ * da dieser Screen vor der Theme-Migration entstanden ist.
+ */
+
+// React/RN
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+
+// Third-party
 import { Ionicons } from '@expo/vector-icons';
+
+// Internal
 import { useStore } from '../store';
 
 const C = { bg: '#0a0a0a', surface: '#141414', surface2: '#1e1e1e', border: '#222222', accent: '#e8c547', text: '#ffffff', text2: '#666666', red: '#ff4444', orange: '#ff9500', green: '#4caf50' };
@@ -109,7 +124,7 @@ export default function MehrScreen({ navigation }) {
         <View style={styles.menuCard}>
           <MenuRow icon="person-outline" iconBg="rgba(33,150,243,0.1)" iconColor="#2196f3" title="Profil bearbeiten" subtitle={user?.displayName || user?.username} onPress={() => navigation.navigate('Profil')} />
           <View style={styles.divider} />
-          <MenuRow icon="person-add-outline" iconBg="rgba(76,175,80,0.1)" iconColor={C.green} title="Haushalt beitreten" subtitle="Einladungscode eingeben" onPress={() => Alert.prompt('Einladungscode', 'Code eingeben:', async (code) => { if (code) { try { const { api } = require('../api/client'); await api.joinHousehold(code.trim().toUpperCase()); Alert.alert('✅ Beigetreten!'); } catch(e) { Alert.alert('Fehler', e.message); } } })} />
+          <MenuRow icon="person-add-outline" iconBg="rgba(76,175,80,0.1)" iconColor={C.green} title="Haushalt beitreten" subtitle="Einladungscode eingeben" onPress={() => Alert.prompt('Einladungscode', 'Code eingeben:', async (code) => { if (code) { try { const { api } = require('../api/client'); await api.joinHousehold(code.trim().toUpperCase()); Alert.alert('Beigetreten!'); } catch(e) { Alert.alert('Fehler', e.message); } } })} />
           <View style={styles.divider} />
           <MenuRow icon="log-out-outline" iconBg="rgba(255,68,68,0.1)" iconColor={C.red} title="Abmelden" danger onPress={() => Alert.alert('Abmelden?', 'Möchtest du dich wirklich abmelden?', [{ text: 'Abbrechen' }, { text: 'Abmelden', style: 'destructive', onPress: logout }])} />
         </View>

@@ -1,25 +1,41 @@
+/**
+ * screens/kraft/ExerciseDatabaseScreen.js — Übungsdatenbank
+ *
+ * Durchsuchbare und filterbare Liste aller Übungen aus data/exercises.js.
+ * Kann in zwei Modi betrieben werden:
+ *   - Normal: Tippen → ExerciseDetail-Screen
+ *   - selectMode (route.params.returnTo gesetzt): Tippen auf "+" → setPendingExercise + goBack
+ *
+ * Filterung:
+ *   - Freitext-Suche (name_de)
+ *   - Muskel-Filter (Multi-Select, hierarchisch via MuscleFilterModal)
+ *   - Ausrüstungs-Filter (Multi-Select via EquipmentFilterModal)
+ *   - activeMuscleIds: expandiert Elterngruppen auf alle Sub-IDs für korrektes Matching
+ */
+
+// React/RN
 import React, { useState, useMemo } from 'react';
-import {
-  View, Text, TextInput, FlatList, TouchableOpacity,
-  StyleSheet, ScrollView, Image,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Internal
 import { useTheme } from '../../theme';
-import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_TYPES, MUSCLE_COLORS, getExerciseImageUrl } from '../../data/exercises';
+import { EXERCISES, MUSCLE_COLORS, getExerciseImageUrl, muscleIcon } from '../../data/exercises';
 import { useKraftStore } from '../../store/kraftStore';
+import {
+  MUSCLE_GROUPS, EQUIPMENT_OPTIONS,
+  EquipmentFilterModal, MuscleFilterModal, FilterButton,
+} from '../../components/ExerciseFilterModals';
 
-const EQUIPMENT_ICONS = {
-  Langhantel: 'minus', Kurzhantel: 'disc', Kabelzug: 'link',
-  Maschine: 'settings', Körpergewicht: 'user', Kettlebell: 'circle',
-};
-
+// ─── Exercise row ───────────────────────────────────────────────────────────
 function ExerciseRow({ item, selectMode, onSelect, onDetail }) {
-  const { colors: C, spacing: S, radius: R } = useTheme();
+  const { colors: C, spacing: S } = useTheme();
   const imgUrl = getExerciseImageUrl(item);
   const [imgFailed, setImgFailed] = useState(false);
   const muscleColor = MUSCLE_COLORS[item.muscle_group] || C.accent;
-  const preview = item.instructions_de?.split('\n')[0]?.replace(/^\d+\.\s*/, '') || '';
 
   return (
     <TouchableOpacity
@@ -27,35 +43,24 @@ function ExerciseRow({ item, selectMode, onSelect, onDetail }) {
       style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}
       activeOpacity={0.7}
     >
-      {/* Thumbnail */}
       <View style={{ width: 54, height: 54, borderRadius: 10, backgroundColor: C.surface, marginRight: S.sm, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
         {imgUrl && !imgFailed ? (
           <Image source={{ uri: imgUrl }} style={{ width: 54, height: 54, resizeMode: 'cover' }} onError={() => setImgFailed(true)} />
         ) : (
           <View style={{ width: 54, height: 54, borderRadius: 10, backgroundColor: muscleColor + '22', justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 20 }}>
-              {item.muscle_group === 'Brust' ? '🫀' : item.muscle_group === 'Rücken' ? '🏋️' :
-               item.muscle_group === 'Beine' ? '🦵' : item.muscle_group === 'Schultern' ? '💙' :
-               item.muscle_group === 'Bauch' ? '⚡' : item.muscle_group === 'Gesäß' ? '🍑' : '💪'}
-            </Text>
+            <MaterialCommunityIcons name={muscleIcon(item.muscle_group)} size={24} color={muscleColor} />
           </View>
         )}
       </View>
-
-      {/* Info */}
       <View style={{ flex: 1 }}>
         <Text style={{ color: C.text, fontWeight: '600', fontSize: 15 }} numberOfLines={1}>{item.name_de}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 6 }}>
-          <View style={{ backgroundColor: muscleColor + '33', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+          <View style={{ backgroundColor: muscleColor + '28', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 }}>
             <Text style={{ color: muscleColor, fontSize: 11, fontWeight: '700' }}>{item.muscle_group}</Text>
           </View>
-          <Feather name={EQUIPMENT_ICONS[item.equipment] || 'tool'} size={11} color={C.textTertiary} />
           <Text style={{ color: C.textTertiary, fontSize: 11 }}>{item.equipment}</Text>
         </View>
-        {preview ? <Text style={{ color: C.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{preview}</Text> : null}
       </View>
-
-      {/* Action button */}
       {selectMode ? (
         <TouchableOpacity
           onPress={() => onSelect(item)}
@@ -71,33 +76,38 @@ function ExerciseRow({ item, selectMode, onSelect, onDetail }) {
   );
 }
 
+// ─── Main screen ────────────────────────────────────────────────────────────
 export default function ExerciseDatabaseScreen({ navigation, route }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const insets = useSafeAreaInsets();
-
-  // returnTo: caller-screen name to navigate back with selected exercise
   const selectMode = !!route?.params?.returnTo;
   const { setPendingExercise } = useKraftStore();
 
   const [query, setQuery] = useState('');
-  const [muscle, setMuscle] = useState('Alle');
-  const [equipment, setEquipment] = useState('Alle');
+  const [selectedMuscles, setSelectedMuscles] = useState([]);
+  const [selectedEquipments, setSelectedEquipments] = useState([]);
+  const [muscleModal, setMuscleModal] = useState(false);
+  const [equipmentModal, setEquipmentModal] = useState(false);
+
+  // Expand all sub-IDs for selected muscles
+  const activeMuscleIds = useMemo(() => {
+    const ids = new Set(selectedMuscles);
+    MUSCLE_GROUPS.forEach(g => {
+      if (selectedMuscles.includes(g.id)) {
+        g.subs.forEach(s => ids.add(s.id));
+      }
+    });
+    return ids;
+  }, [selectedMuscles]);
 
   const filtered = useMemo(() => EXERCISES.filter(ex => {
     const matchQ = !query || ex.name_de.toLowerCase().includes(query.toLowerCase());
-    const matchM = muscle === 'Alle' || ex.muscle_group === muscle;
-    const matchE = equipment === 'Alle' || ex.equipment === equipment;
-    return matchQ && matchM && matchE;
-  }), [query, muscle, equipment]);
-
-  const handleSelect = (ex) => {
-    setPendingExercise(ex);
-    navigation.goBack();
-  };
-
-  const handleDetail = (ex) => {
-    navigation.navigate('ExerciseDetail', { exercise: ex });
-  };
+    const matchE = selectedEquipments.length === 0 || selectedEquipments.includes(ex.equipment);
+    const matchM = selectedMuscles.length === 0 ||
+      activeMuscleIds.has(ex.muscle_group) ||
+      Object.keys(ex.worked_muscles || {}).some(m => activeMuscleIds.has(m));
+    return matchQ && matchE && matchM;
+  }), [query, selectedMuscles, selectedEquipments, activeMuscleIds]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -114,7 +124,7 @@ export default function ExerciseDatabaseScreen({ navigation, route }) {
         </View>
 
         {/* Search */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: S.sm, marginBottom: S.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, paddingHorizontal: S.sm, marginBottom: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
           <Feather name="search" size={16} color={C.textSecondary} style={{ marginRight: S.xs }} />
           <TextInput
             style={{ flex: 1, color: C.text, paddingVertical: 10, fontSize: 15 }}
@@ -127,35 +137,21 @@ export default function ExerciseDatabaseScreen({ navigation, route }) {
           {query ? <TouchableOpacity onPress={() => setQuery('')}><Feather name="x" size={16} color={C.textSecondary} /></TouchableOpacity> : null}
         </View>
 
-        {/* Muscle filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-          {MUSCLE_GROUPS.map(m => {
-            const color = MUSCLE_COLORS[m];
-            const active = muscle === m;
-            return (
-              <TouchableOpacity
-                key={m}
-                onPress={() => setMuscle(m)}
-                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, backgroundColor: active ? (color || C.accent) : C.surface, marginRight: 6, borderWidth: active ? 0 : 1, borderColor: C.border }}
-              >
-                <Text style={{ color: active ? 'white' : C.textSecondary, fontSize: 13, fontWeight: '600' }}>{m}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Equipment filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {EQUIPMENT_TYPES.map(eq => (
-            <TouchableOpacity
-              key={eq}
-              onPress={() => setEquipment(eq)}
-              style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: equipment === eq ? C.accent + '22' : 'transparent', marginRight: 6, borderWidth: 1, borderColor: equipment === eq ? C.accent : C.border }}
-            >
-              <Text style={{ color: equipment === eq ? C.accent : C.textTertiary, fontSize: 12, fontWeight: '600' }}>{eq}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Two filter buttons */}
+        <View style={{ flexDirection: 'row', gap: S.sm }}>
+          <FilterButton
+            onPress={() => setEquipmentModal(true)}
+            icon="tool"
+            label="Ausrüstung"
+            count={selectedEquipments.length}
+          />
+          <FilterButton
+            onPress={() => setMuscleModal(true)}
+            icon="user"
+            label="Alle Muskeln"
+            count={selectedMuscles.length}
+          />
+        </View>
       </View>
 
       {selectMode && (
@@ -173,8 +169,8 @@ export default function ExerciseDatabaseScreen({ navigation, route }) {
           <ExerciseRow
             item={item}
             selectMode={selectMode}
-            onSelect={handleSelect}
-            onDetail={handleDetail}
+            onSelect={(ex) => { setPendingExercise(ex); navigation.goBack(); }}
+            onDetail={(ex) => navigation.navigate('ExerciseDetail', { exercise: ex })}
           />
         )}
         ListEmptyComponent={
@@ -184,6 +180,19 @@ export default function ExerciseDatabaseScreen({ navigation, route }) {
         }
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         keyboardDismissMode="on-drag"
+      />
+
+      <EquipmentFilterModal
+        visible={equipmentModal}
+        onClose={() => setEquipmentModal(false)}
+        selected={selectedEquipments}
+        onChange={setSelectedEquipments}
+      />
+      <MuscleFilterModal
+        visible={muscleModal}
+        onClose={() => setMuscleModal(false)}
+        selected={selectedMuscles}
+        onChange={setSelectedMuscles}
       />
     </View>
   );

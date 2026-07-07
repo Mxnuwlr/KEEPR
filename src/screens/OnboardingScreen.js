@@ -1,9 +1,25 @@
+/**
+ * screens/OnboardingScreen.js — Ersteinrichtung / Onboarding
+ *
+ * Mehrstufiger Onboarding-Flow (TOTAL_STEPS = 6) für neue Nutzer.
+ * Erfasst: Name, Gewicht, Größe, Alter, Geschlecht, Sportprofil, Ziel-Pace.
+ *
+ * calcBMR(weight, height, age, gender) — Mifflin-St.-Jeor BMR-Berechnung
+ * paceToSeconds() aus api/client für Pace-Validierung
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { getSportMci } from '../data/sports';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { paceToSeconds } from '../api/client';
@@ -207,7 +223,7 @@ export default function OnboardingScreen({ onComplete }) {
             <Field label="Geburtstag" value={birthday} onChange={setBirthday} placeholder="15.03.1990" hint="Format: TT.MM.JJJJ" />
             <Text style={sectionLabel}>Geschlecht</Text>
             <View style={{ flexDirection: 'row', gap: S.sm }}>
-              {[['male', '♂ Männlich'], ['female', '♀ Weiblich']].map(([v, l]) => (
+              {[['male', 'Männlich'], ['female', 'Weiblich']].map(([v, l]) => (
                 <Chip key={v} label={l} selected={gender === v} onPress={() => setGender(v)} />
               ))}
             </View>
@@ -231,14 +247,14 @@ export default function OnboardingScreen({ onComplete }) {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
               {[
-                ['lose',     '🔥', 'Abnehmen',          '-500 kcal/Tag'],
-                ['maintain', '⚖️', 'Gewicht halten',    'Erhaltungskalorien'],
-                ['gain',     '📈', 'Zunehmen',           '+300 kcal/Tag'],
-                ['muscle',   '💪', 'Muskelaufbau',      'Defizit + Protein'],
-                ['triathlon','🏊', 'Triathlon',          '+200 kcal Ausdauer'],
-                ['race',     '🏃', 'Wettkampf',          'Leistungsoptimierung'],
-                ['fitness',  '✨', 'Allg. Fitness',     'Ausgeglichene Makros'],
-              ].map(([v, emoji, label, sub]) => {
+                ['lose',     'trending-down',  'Abnehmen',        '-500 kcal/Tag'],
+                ['maintain', 'scale-balance',  'Gewicht halten',  'Erhaltungskalorien'],
+                ['gain',     'trending-up',    'Zunehmen',        '+300 kcal/Tag'],
+                ['muscle',   'arm-flex',       'Muskelaufbau',    'Defizit + Protein'],
+                ['triathlon','swim',           'Triathlon',       '+200 kcal Ausdauer'],
+                ['race',     'flag-checkered', 'Wettkampf',       'Leistungsoptimierung'],
+                ['fitness',  'heart-pulse',    'Allg. Fitness',   'Ausgeglichene Makros'],
+              ].map(([v, icon, label, sub]) => {
                 const sel = goals.includes(v);
                 return (
                   <TouchableOpacity
@@ -261,7 +277,7 @@ export default function OnboardingScreen({ onComplete }) {
                         <Feather name="check-circle" size={14} color={C.tint} />
                       </View>
                     )}
-                    <Text style={{ fontSize: 30, marginBottom: 6 }}>{emoji}</Text>
+                    <MaterialCommunityIcons name={icon} size={28} color={sel ? C.tint : C.textSecondary} style={{ marginBottom: 6 }} />
                     <Text style={{ color: sel ? C.tint : C.text, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>{label}</Text>
                     <Text style={{ color: C.textTertiary, fontSize: 11, textAlign: 'center', marginTop: 2 }}>{sub}</Text>
                   </TouchableOpacity>
@@ -277,11 +293,11 @@ export default function OnboardingScreen({ onComplete }) {
             <Text style={sectionLabel}>Aktivitätslevel</Text>
             <View style={{ gap: S.sm, marginBottom: S.lg }}>
               {[
-                ['sedentary', '🪑 Sitzend', 'Bürojob, kaum Sport'],
-                ['light', '🚶 Leicht aktiv', '1–3x/Woche Sport'],
-                ['moderate', '🏃 Moderat aktiv', '3–5x/Woche Sport'],
-                ['active', '⚡ Sehr aktiv', '6–7x/Woche Sport'],
-                ['extreme', '🔥 Extrem aktiv', '2x täglich, Profi-Athlet'],
+                ['sedentary', 'Sitzend', 'Bürojob, kaum Sport'],
+                ['light', 'Leicht aktiv', '1–3x/Woche Sport'],
+                ['moderate', 'Moderat aktiv', '3–5x/Woche Sport'],
+                ['active', 'Sehr aktiv', '6–7x/Woche Sport'],
+                ['extreme', 'Extrem aktiv', '2x täglich, Profi-Athlet'],
               ].map(([v, l, sub]) => (
                 <TouchableOpacity
                   key={v}
@@ -338,14 +354,19 @@ export default function OnboardingScreen({ onComplete }) {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, marginBottom: S.lg }}>
               {[
-                ['swim',      '🏊', 'Schwimmen',    '#2196F3'],
-                ['bike',      '🚴', 'Radfahren',     '#FF9800'],
-                ['run',       '🏃', 'Laufen',        '#4CAF50'],
-                ['strength',  '🏋️', 'Krafttraining', '#E8C547'],
-                ['triathlon', '🥇', 'Triathlon',     '#FF5722'],
-                ['mobility',  '🤸', 'Mobility',      '#CE93D8'],
-                ['yoga',      '🧘', 'Yoga',          '#9C27B0'],
-              ].map(([v, emoji, label, color]) => {
+                ['swim',         'Schwimmen',          '#2196F3'],
+                ['bike',         'Radfahren',          '#FF9800'],
+                ['run',          'Laufen',             '#4CAF50'],
+                ['strength',     'Krafttraining',      '#E8C547'],
+                ['triathlon',    'Triathlon',          '#FF5722'],
+                ['hyrox',        'Hyrox / Functional', '#FBC02D'],
+                ['calisthenics', 'Calisthenics',       '#F9A825'],
+                ['row',          'Rudern',             '#26C6DA'],
+                ['hike',         'Wandern',            '#689F38'],
+                ['climbing',     'Klettern',           '#795548'],
+                ['pilates',      'Pilates',            '#AB47BC'],
+                ['mobility',     'Mobility',           '#CE93D8'],
+              ].map(([v, label, color]) => {
                 const sel = sportTypes.includes(v);
                 return (
                   <TouchableOpacity
@@ -380,7 +401,7 @@ export default function OnboardingScreen({ onComplete }) {
                         <Feather name="check-circle" size={14} color={color} />
                       </View>
                     )}
-                    <Text style={{ fontSize: 30, marginBottom: 6 }}>{emoji}</Text>
+                    <MaterialCommunityIcons name={getSportMci(v)} size={28} color={sel ? color : C.textSecondary} style={{ marginBottom: 6 }} />
                     <Text style={{ color: sel ? color : C.text, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>{label}</Text>
                   </TouchableOpacity>
                 );
@@ -413,7 +434,7 @@ export default function OnboardingScreen({ onComplete }) {
           <View>
             <Text style={sectionLabel}>Ernährungsweise</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, marginBottom: S.lg }}>
-              {[['omnivore', '🍗 Alles'], ['vegetarian', '🥗 Vegetarisch'], ['vegan', '🌱 Vegan'], ['pescatarian', '🐟 Pescetarisch'], ['keto', '🥑 Keto'], ['paleo', '🥩 Paleo']].map(([v, l]) => (
+              {[['omnivore', 'Alles'], ['vegetarian', 'Vegetarisch'], ['vegan', 'Vegan'], ['pescatarian', 'Pescetarisch'], ['keto', 'Keto'], ['paleo', 'Paleo']].map(([v, l]) => (
                 <Chip key={v} label={l} selected={dietType === v} onPress={() => setDietType(v)} />
               ))}
             </View>
@@ -463,7 +484,7 @@ export default function OnboardingScreen({ onComplete }) {
             disabled={saving}
           >
             <Text style={[T.bodyMed, { color: C.accentText, fontSize: 17 }]}>
-              {saving ? 'Speichert…' : step === TOTAL_STEPS ? 'Loslegen 🚀' : 'Weiter →'}
+              {saving ? 'Speichert…' : step === TOTAL_STEPS ? 'Loslegen' : 'Weiter'}
             </Text>
           </TouchableOpacity>
         </View>

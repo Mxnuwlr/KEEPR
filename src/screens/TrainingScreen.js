@@ -1,14 +1,41 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+/**
+ * screens/TrainingScreen.js — Trainingsplan & Wochenübersicht
+ *
+ * Hauptscreen für Ausdauer-Training. Zeigt KI-generierten Wochenplan,
+ * Tageseinheiten und ermöglicht Workout-Logging.
+ *
+ * getCurrentWeekKey() — Wochenschlüssel (YYYY-WNN) für Plan-Caching
+ * getCurrentPhaseText() — Aktuelle Trainingsphase aus Store (Text oder strukturiert)
+ * DAYS / DAY_SHORT — Deutsche Wochentage
+ * SPORT_MCI — Mapping Sportkey → MaterialCommunityIcons Icon-Name
+ *
+ * analyzeWorkoutWithGemini() — Post-Workout KI-Feedback
+ * getSportIcon() / getSportColor() — Einheitliche Sporttyp-Visualisierung
+ */
+
+// React/RN
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView,
   Platform, Animated,
 } from 'react-native';
+
+// Third-party
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Internal
 import { useStore, getCurrentPhaseText } from '../store';
+import { useKraftStore } from '../store/kraftStore';
 import { api, getSportIcon, getSportColor, secondsToPace, analyzeWorkoutWithGemini } from '../api/client';
 import { useTheme } from '../theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyzeTrainingStatus, getTrainingStatusIcon, getTrainingStatusColor } from '../utils/trainingStatus';
+import { detectTrainingConflicts } from '../utils/coaching';
+import { assessRecovery, EASE_INSTRUCTION } from '../utils/recovery';
+import { weakestZones } from '../data/mobility';
+import { getSessionSteps } from '../utils/workoutStructure';
+import WorkoutProfileChart from '../components/WorkoutProfileChart';
 
 const DAYS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 const DAY_SHORT = ['Mo','Di','Mi','Do','Fr','Sa','So'];
@@ -148,6 +175,17 @@ function SessionInfoModal({ visible, session, onClose, onComplete }) {
             </View>
           )}
 
+          {/* Workout-Profil (intervals.icu-Stil) */}
+          {(() => {
+            const profileSteps = getSessionSteps(session);
+            return profileSteps.length > 0 ? (
+              <View style={{ marginBottom: S.lg }}>
+                <Text style={[T.label, { color: C.textTertiary, marginBottom: S.sm }]}>PROFIL</Text>
+                <WorkoutProfileChart steps={profileSteps} height={72} />
+              </View>
+            ) : null;
+          })()}
+
           {/* Exercises */}
           {session.exercises?.length > 0 && (
             <>
@@ -175,7 +213,7 @@ function SessionInfoModal({ visible, session, onClose, onComplete }) {
             onPress={() => { onClose(); onComplete(); }}
           >
             <Feather name="check-circle" size={16} color="#fff" />
-            <Text style={[T.bodyMed, { color: '#fff', fontWeight: '600' }]}>Training abschließen</Text>
+            <Text style={[T.bodyMed, { color: '#fff', fontWeight: '600' }]}>Einheit abschließen</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -250,7 +288,7 @@ function CompleteModal({ visible, session, planId, onClose, onSaved, geminiKey, 
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: S.lg, paddingTop: S.xl }}>
-          <Text style={[T.h2, { color: C.text, marginBottom: S.xs }]}>Training abschließen</Text>
+          <Text style={[T.h2, { color: C.text, marginBottom: S.xs }]}>Einheit abschließen</Text>
           {session && <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.md }]}>{session.focus}</Text>}
 
           {/* Datum */}
@@ -271,7 +309,7 @@ function CompleteModal({ visible, session, planId, onClose, onSaved, geminiKey, 
           <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.md }}>
             {[1,2,3,4,5].map(v => (
               <TouchableOpacity key={v} style={{ flex: 1, backgroundColor: rating===v ? C.tint+'20' : C.bgSecondary, borderRadius: R.md, padding: S.sm, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: rating===v ? C.tint : C.border }} onPress={() => setRating(v)}>
-                <Text style={{ fontSize: 16 }}>{['😴','😐','🙂','😊','🔥'][v-1]}</Text>
+                <MaterialCommunityIcons name={['emoticon-sad-outline','emoticon-neutral-outline','emoticon-happy-outline','emoticon-excited-outline','emoticon-cool-outline'][v-1]} size={20} color={rating===v ? C.tint : C.textTertiary} />
                 <Text style={[T.caption, { color: rating===v ? C.tint : C.textTertiary, fontSize: 10, marginTop: 2 }]}>{['Schlecht','Mäßig','Ok','Gut','Top!'][v-1]}</Text>
               </TouchableOpacity>
             ))}
@@ -541,10 +579,252 @@ function DailyLogModal({ visible, onClose, onSaved }) {
 }
 
 // ── Main Screen ──────────────────────────────────────────────
+// ── Einheit bearbeiten & verschieben ──────────────────────────────────────────
+const EDIT_SPORTS = [
+  { key: 'run', label: 'Laufen' }, { key: 'bike', label: 'Rad' }, { key: 'swim', label: 'Schwimmen' },
+  { key: 'strength', label: 'Kraft' }, { key: 'yoga', label: 'Yoga' }, { key: 'mobility', label: 'Mobility' },
+  { key: 'triathlon', label: 'Triathlon' }, { key: 'other', label: 'Andere' },
+];
+const EDIT_ZONES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+
+function SessionEditModal({ visible, session, onClose, onSubmit }) {
+  const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const [focus, setFocus] = useState('');
+  const [sportType, setSportType] = useState('run');
+  const [duration, setDuration] = useState('');
+  const [intensity, setIntensity] = useState('');
+  const [dayIndex, setDayIndex] = useState(0);
+  const [isRest, setIsRest] = useState(false);
+  const [exercises, setExercises] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible && session) {
+      setFocus(session.focus || '');
+      setSportType(session.sport_type || 'run');
+      setDuration(session.duration ? String(session.duration) : '');
+      setIntensity(session.intensity || '');
+      setDayIndex(session.day_index ?? 0);
+      setIsRest(!!session.is_rest);
+      setExercises(Array.isArray(session.exercises) ? session.exercises.map(e => ({ ...e })) : []);
+    }
+  }, [visible, session]);
+
+  const updateEx = (i, patch) => setExercises(prev => prev.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+  const removeEx = (i) => setExercises(prev => prev.filter((_, j) => j !== i));
+  const moveEx = (i, dir) => setExercises(prev => {
+    const j = i + dir; if (j < 0 || j >= prev.length) return prev;
+    const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next;
+  });
+  const addEx = () => setExercises(prev => [...prev, { name: '', sets: 3, reps: '10', duration: 0 }]);
+  const showExercises = !isRest && (sportType === 'strength' || exercises.length > 0);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      const newDuration = isRest ? 0 : (parseInt(duration) || 0);
+      // Profil neu berechnen lassen, wenn sich profil-relevante Felder geändert haben
+      const profileChanged = isRest
+        || newDuration !== (session?.duration || 0)
+        || sportType !== (session?.sport_type)
+        || intensity !== (session?.intensity || '');
+      await onSubmit({
+        focus: focus.trim() || (isRest ? 'Ruhetag' : 'Training'),
+        sport_type: isRest ? 'rest' : sportType,
+        duration: newDuration,
+        intensity: isRest ? '' : intensity,
+        day_index: dayIndex,
+        is_rest: isRest,
+        exercises: isRest ? [] : exercises.filter(e => (e.name || '').trim()),
+        ...(profileChanged ? { steps: null } : {}),
+      });
+      onClose();
+    } catch (e) {
+      Alert.alert('Fehler', e.message || 'Konnte nicht gespeichert werden.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle = { backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.md, color: C.text, fontSize: 15, padding: S.md };
+  const lbl = (t) => <Text style={[T.label, { color: C.textTertiary, marginBottom: S.xs, marginTop: S.md }]}>{t}</Text>;
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.lg, paddingTop: S.xl, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
+          <TouchableOpacity onPress={onClose} hitSlop={8}><Feather name="x" size={22} color={C.textSecondary} /></TouchableOpacity>
+          <Text style={[T.h3, { color: C.text, flex: 1 }]}>Einheit bearbeiten</Text>
+          <TouchableOpacity onPress={submit} disabled={saving} style={{ backgroundColor: C.accent, borderRadius: R.full, paddingHorizontal: 16, paddingVertical: 8, opacity: saving ? 0.6 : 1 }}>
+            {saving ? <ActivityIndicator size="small" color={C.accentText} /> : <Text style={[T.label, { color: C.accentText, fontWeight: '700' }]}>Speichern</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+          {/* Wochentag (Verschieben) */}
+          {lbl('Wochentag (verschieben)')}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {DAY_SHORT.map((d, i) => (
+              <TouchableOpacity
+                key={d}
+                onPress={() => setDayIndex(i)}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: R.sm, alignItems: 'center', backgroundColor: dayIndex === i ? C.accent : C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: dayIndex === i ? C.accent : C.border }}
+              >
+                <Text style={{ color: dayIndex === i ? C.accentText : C.textSecondary, fontWeight: '700', fontSize: 12 }}>{d}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Ruhetag-Toggle */}
+          <TouchableOpacity
+            onPress={() => setIsRest(v => !v)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.lg, padding: S.md, backgroundColor: C.surface, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: isRest ? C.accent : C.border }}
+          >
+            <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: isRest ? C.accent : C.borderStrong, backgroundColor: isRest ? C.accent : 'transparent', justifyContent: 'center', alignItems: 'center' }}>
+              {isRest && <Feather name="check" size={13} color={C.bg} />}
+            </View>
+            <Text style={[T.body, { color: C.text, flex: 1 }]}>Als Ruhetag markieren</Text>
+          </TouchableOpacity>
+
+          {!isRest && (
+            <>
+              {/* Sportart */}
+              {lbl('Sportart')}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
+                {EDIT_SPORTS.map(s => {
+                  const active = sportType === s.key;
+                  const col = getSportColor(s.key);
+                  return (
+                    <TouchableOpacity
+                      key={s.key}
+                      onPress={() => setSportType(s.key)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: R.full, backgroundColor: active ? `${col}20` : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: active ? col : C.border }}
+                    >
+                      <MaterialCommunityIcons name={SPORT_MCI[s.key] || 'star'} size={15} color={active ? col : C.textTertiary} />
+                      <Text style={[T.label, { color: active ? C.text : C.textSecondary }]}>{s.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Fokus */}
+              {lbl('Fokus / Beschreibung')}
+              <TextInput style={inputStyle} value={focus} onChangeText={setFocus} placeholder="z.B. Lockerer Dauerlauf" placeholderTextColor={C.textTertiary} />
+
+              {/* Dauer */}
+              {lbl('Dauer (Min)')}
+              <TextInput style={inputStyle} value={duration} onChangeText={setDuration} placeholder="z.B. 60" placeholderTextColor={C.textTertiary} keyboardType="number-pad" />
+
+              {/* Intensität */}
+              {lbl('Intensität / Zone')}
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => setIntensity('')}
+                  style={{ paddingVertical: 9, paddingHorizontal: 12, borderRadius: R.sm, backgroundColor: !intensity ? C.accent : C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: !intensity ? C.accent : C.border }}
+                >
+                  <Text style={{ color: !intensity ? C.accentText : C.textSecondary, fontWeight: '600', fontSize: 12 }}>—</Text>
+                </TouchableOpacity>
+                {EDIT_ZONES.map(z => (
+                  <TouchableOpacity
+                    key={z}
+                    onPress={() => setIntensity(z)}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: R.sm, alignItems: 'center', backgroundColor: intensity === z ? C.accent : C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: intensity === z ? C.accent : C.border }}
+                  >
+                    <Text style={{ color: intensity === z ? C.accentText : C.textSecondary, fontWeight: '700', fontSize: 12 }}>{z}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Übungen (bei Kraft / wenn vorhanden) */}
+              {showExercises && (
+                <>
+                  {lbl('Übungen')}
+                  <View style={{ gap: S.sm }}>
+                    {exercises.map((ex, i) => (
+                      <View key={i} style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TextInput
+                            style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '600', paddingVertical: 4 }}
+                            value={ex.name} onChangeText={t => updateEx(i, { name: t })}
+                            placeholder="Übungsname (z.B. Kniebeugen)" placeholderTextColor={C.textTertiary}
+                          />
+                          <TouchableOpacity onPress={() => moveEx(i, -1)} disabled={i === 0} hitSlop={6} style={{ opacity: i === 0 ? 0.3 : 1, padding: 2 }}><Feather name="chevron-up" size={18} color={C.textSecondary} /></TouchableOpacity>
+                          <TouchableOpacity onPress={() => moveEx(i, 1)} disabled={i === exercises.length - 1} hitSlop={6} style={{ opacity: i === exercises.length - 1 ? 0.3 : 1, padding: 2 }}><Feather name="chevron-down" size={18} color={C.textSecondary} /></TouchableOpacity>
+                          <TouchableOpacity onPress={() => removeEx(i)} hitSlop={6} style={{ padding: 2 }}><Feather name="trash-2" size={17} color={C.danger} /></TouchableOpacity>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <Text style={[T.label, { color: C.textTertiary }]}>Sätze</Text>
+                          <TextInput
+                            style={{ width: 46, backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.sm, color: C.text, fontSize: 14, paddingVertical: 6, textAlign: 'center' }}
+                            value={ex.sets != null ? String(ex.sets) : ''} onChangeText={t => updateEx(i, { sets: parseInt(t) || 0 })}
+                            keyboardType="number-pad" placeholder="3" placeholderTextColor={C.textTertiary}
+                          />
+                          <Text style={[T.label, { color: C.textTertiary }]}>Wdh.</Text>
+                          <TextInput
+                            style={{ width: 70, backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.sm, color: C.text, fontSize: 14, paddingVertical: 6, textAlign: 'center' }}
+                            value={ex.reps != null ? String(ex.reps) : ''} onChangeText={t => updateEx(i, { reps: t })}
+                            placeholder="8-12" placeholderTextColor={C.textTertiary}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={addEx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: S.sm, paddingVertical: 12, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.accent, borderStyle: 'dashed' }}>
+                    <Feather name="plus" size={16} color={C.accent} />
+                    <Text style={[T.label, { color: C.accent, fontWeight: '700' }]}>Übung hinzufügen</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── Einheit per KI neu erstellen ──────────────────────────────────────────────
+function RegenerateModal({ visible, onClose, onSubmit, loading }) {
+  const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const [instruction, setInstruction] = useState('');
+  useEffect(() => { if (visible) setInstruction(''); }, [visible]);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={{ flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, padding: S.lg, paddingBottom: S.xl + 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
+              <Feather name="repeat" size={18} color={C.tint} />
+              <Text style={[T.h3, { color: C.text, flex: 1 }]}>Einheit austauschen</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={8} disabled={loading}><Feather name="x" size={20} color={C.textSecondary} /></TouchableOpacity>
+            </View>
+            <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.md }]}>
+              Die KI ersetzt die Einheit durch die, die an diesem Tag am besten in deine Woche passt (Athletenprofil + Erholung). Optionaler Wunsch:
+            </Text>
+            <TextInput
+              style={{ backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, borderRadius: R.md, color: C.text, fontSize: 15, padding: S.md, minHeight: 64, textAlignVertical: 'top', marginBottom: S.md }}
+              value={instruction} onChangeText={setInstruction} multiline editable={!loading}
+              placeholder="z.B. mehr Intervalle · kürzer · lockerer · anderer Fokus" placeholderTextColor={C.textTertiary}
+            />
+            <TouchableOpacity
+              onPress={() => onSubmit(instruction)} disabled={loading}
+              style={{ backgroundColor: C.accent, borderRadius: R.md, padding: S.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm, opacity: loading ? 0.6 : 1 }}
+            >
+              {loading ? <ActivityIndicator size="small" color={C.accentText} /> : <Feather name="refresh-cw" size={16} color={C.accentText} />}
+              <Text style={[T.bodyMed, { color: C.accentText, fontWeight: '700' }]}>{loading ? 'KI erstellt…' : 'Neu erstellen'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, trainingPlan, fetchTrainingPlan, generateTrainingPlan, geminiKey } = useStore();
+  const { user, trainingPlan, fetchTrainingPlan, generateTrainingPlan, geminiKey, externalData, returnFromBreak, setReturnFromBreak, updateSessionAt, regenerateSessionAt, rebalancePlan, lastEditedSessionId, generateMobilityFlow, mobilityResult, dailyContext } = useStore();
+  const { routines, sessions, fetchSessions } = useKraftStore();
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
   const [completedMap, setCompletedMap] = useState({});
   const [loading, setLoading] = useState(false);
@@ -556,15 +836,94 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const [completeSession, setCompleteSession] = useState(null);
   const [showSessionInfo, setShowSessionInfo] = useState(false);
   const [infoSession, setInfoSession] = useState(null);
+  const [showSessionEdit, setShowSessionEdit] = useState(false);
+  const [editSession, setEditSession] = useState(null);
+  const [editIndex, setEditIndex] = useState(-1);
+  const [showRegen, setShowRegen] = useState(false);
+  const [regenIndex, setRegenIndex] = useState(-1);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [rebalancing, setRebalancing] = useState(false);
+
+  const handleRegenerate = async (instruction) => {
+    setRegenLoading(true);
+    try { await regenerateSessionAt(regenIndex, instruction); setShowRegen(false); }
+    catch (e) { Alert.alert('Fehler', e.message || 'KI nicht verfügbar'); }
+    finally { setRegenLoading(false); }
+  };
+
+  const trainingConflicts = useMemo(() => detectTrainingConflicts(trainingPlan?.sessions), [trainingPlan]);
+  const [flowStarting, setFlowStarting] = useState(false);
+
+  const startMobilityFlow = async (session) => {
+    setFlowStarting(true);
+    try {
+      const focusZones = weakestZones(mobilityResult?.byZone, 2);
+      const sport = Array.isArray(user?.sportTypes) && user.sportTypes.length ? user.sportTypes[0] : null;
+      const flow = await generateMobilityFlow({ minutes: session.duration || 15, equipment: '', focusZones, sport, weekKey: trainingPlan?.week_key, dayIndex: session.day_index });
+      navigation?.navigate('MobilityFlow', { flow, sessionId: session.id, planId: trainingPlan?.id, dayIndex: session.day_index });
+    } catch (e) {
+      Alert.alert('Fehler', e.message || 'Flow konnte nicht erstellt werden.');
+    } finally {
+      setFlowStarting(false);
+    }
+  };
+
+  const handleRebalance = async () => {
+    setRebalancing(true);
+    try { await rebalancePlan(trainingPlan?.week_key || getCurrentWeekKey(), lastEditedSessionId); }
+    catch (e) { Alert.alert('Fehler', e.message || 'Konnte den Plan nicht ausbalancieren'); }
+    finally { setRebalancing(false); }
+  };
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [trainingPhase, setTrainingPhase] = useState('');
+  const [includeRoutines, setIncludeRoutines] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(0);
   const retryTimer = useRef(null);
   const pendingContext = useRef(null);
+  const pendingIncludeRoutines = useRef(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const todayIdx = getTodayIndex();
 
   useEffect(() => { loadPlan(); }, []);
+  useEffect(() => { if (sessions.length === 0) fetchSessions(40); }, []);
+
+  // Trainingsstatus: Pausenerkennung, Belastungs- & Ermüdungstrend
+  const trainingStatus = useMemo(() =>
+    analyzeTrainingStatus({ kraftSessions: sessions, externalData, manualOverride: returnFromBreak }),
+    [sessions, externalData, returnFromBreak]
+  );
+
+  // Recovery-Coaching: Schlaf/Readiness/Energie/Muskelkater → heute leichter + Recovery-Flow
+  const recovery = useMemo(() =>
+    assessRecovery({ dailyContext, externalData, trainingStatus }),
+    [dailyContext, externalData, trainingStatus]
+  );
+  const todaySessionIdxs = useMemo(() =>
+    (trainingPlan?.sessions || []).map((s, i) => ({ s, i })).filter((x) => x.s.day_index === todayIdx && !x.s.is_rest).map((x) => x.i),
+    [trainingPlan, todayIdx]
+  );
+  const [easing, setEasing] = useState(false);
+
+  const handleEaseToday = async () => {
+    if (!todaySessionIdxs.length) { Alert.alert('Kein Training heute', 'Für heute ist keine Einheit geplant.'); return; }
+    setEasing(true);
+    try {
+      for (const i of todaySessionIdxs) await regenerateSessionAt(i, EASE_INSTRUCTION);
+      Alert.alert('Angepasst', 'Die heutige Einheit wurde leichter & regenerativer gestaltet.');
+    } catch (e) { Alert.alert('Fehler', e.message || 'KI nicht verfügbar'); }
+    finally { setEasing(false); }
+  };
+
+  const handleRecoveryFlow = async () => {
+    setFlowStarting(true);
+    try {
+      const focusZones = weakestZones(mobilityResult?.byZone, 2);
+      const sport = Array.isArray(user?.sportTypes) && user.sportTypes.length ? user.sportTypes[0] : null;
+      const flow = await generateMobilityFlow({ minutes: 12, equipment: '', focusZones, sport, goal: 'recovery', weekKey: trainingPlan?.week_key });
+      navigation?.navigate('MobilityFlow', { flow });
+    } catch (e) { Alert.alert('Fehler', e.message || 'Flow konnte nicht erstellt werden.'); }
+    finally { setFlowStarting(false); }
+  };
 
   useEffect(() => {
     if (trainingPlan) {
@@ -612,7 +971,8 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
       // trainingContext wird im Store automatisch immer als Regel mitgegeben
       // Hier nur die session-spezifische manuelle Phaseneingabe übergeben
       const phaseNote = trainingPhase.trim() ? `Aktuelle Trainingsphase: ${trainingPhase.trim()}` : '';
-      await generateTrainingPlan(trainingType, getCurrentWeekKey(), phaseNote);
+      const routinesToPass = pendingIncludeRoutines.current ? routines : [];
+      await generateTrainingPlan(trainingType, getCurrentWeekKey(), phaseNote, routinesToPass, trainingStatus);
     } catch(e) {
       const msg = e.message || 'Unbekannter Fehler';
       const retryMatch = msg.match(/retry in (\d+(?:\.\d+)?)/i);
@@ -629,6 +989,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
 
   const doGenerate = (withContext) => {
     setShowGenerateModal(false);
+    pendingIncludeRoutines.current = includeRoutines;
     if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
     setRetryCountdown(0);
     doGenerateInner(withContext, false);
@@ -665,7 +1026,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const getSportTypes = () => {
     const types = user?.sportTypes || [];
     if (types.length === 0) return 'gemischt';
-    const labels = { swim: 'Schwimmen', bike: 'Rad', run: 'Laufen', strength: 'Kraft', yoga: 'Yoga', mobility: 'Mobility', triathlon: 'Triathlon', mixed: 'Gemischt' };
+    const labels = { swim: 'Schwimmen', bike: 'Rad', run: 'Laufen', strength: 'Kraft', yoga: 'Yoga', mobility: 'Mobility', triathlon: 'Triathlon', mixed: 'Gemischt', hyrox: 'Hyrox', calisthenics: 'Calisthenics', row: 'Rudern', hike: 'Wandern', climbing: 'Klettern', pilates: 'Pilates' };
     return types.map(t => labels[t] || t).join(' + ');
   };
 
@@ -689,6 +1050,18 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
       />
       <ChatModal visible={showChat} onClose={() => setShowChat(false)} />
       <DailyLogModal visible={showDailyLog} onClose={() => setShowDailyLog(false)} />
+      <SessionEditModal
+        visible={showSessionEdit}
+        session={editSession}
+        onClose={() => { setShowSessionEdit(false); setEditSession(null); setEditIndex(-1); }}
+        onSubmit={async (updates) => { if (editIndex >= 0) await updateSessionAt(editIndex, updates); }}
+      />
+      <RegenerateModal
+        visible={showRegen}
+        loading={regenLoading}
+        onClose={() => { if (!regenLoading) setShowRegen(false); }}
+        onSubmit={handleRegenerate}
+      />
 
       {/* Generate Modal */}
       <Modal visible={showGenerateModal} transparent animationType="fade" onRequestClose={() => setShowGenerateModal(false)}>
@@ -706,6 +1079,46 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               placeholder="z.B. Fokus Laufen, Woche 2 · oder: Deload"
               placeholderTextColor={C.textTertiary}
             />
+
+            {/* Trainingsstatus-Hinweis */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.md, padding: S.sm, backgroundColor: getTrainingStatusColor(trainingStatus, C) + '12', borderRadius: R.sm }}>
+              <Feather name={getTrainingStatusIcon(trainingStatus)} size={13} color={getTrainingStatusColor(trainingStatus, C)} />
+              <Text style={[T.caption, { color: getTrainingStatusColor(trainingStatus, C), flex: 1 }]}>
+                Trainingsstatus: {trainingStatus.summaryDe}
+              </Text>
+            </View>
+
+            {/* Wiedereinstieg nach Pause */}
+            <TouchableOpacity
+              onPress={() => setReturnFromBreak(!returnFromBreak?.active)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.md, padding: S.sm, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: returnFromBreak?.active ? C.accent : C.border }}
+              activeOpacity={0.7}
+            >
+              <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: returnFromBreak?.active ? C.accent : C.borderStrong, backgroundColor: returnFromBreak?.active ? C.accent : 'transparent', justifyContent: 'center', alignItems: 'center' }}>
+                {returnFromBreak?.active && <Feather name="check" size={13} color={C.bg} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[T.body, { color: C.text }]}>Ich starte nach einer Pause neu</Text>
+                <Text style={[T.caption, { color: C.textTertiary }]}>Plan startet mit reduziertem Volumen & Intensität</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Routinen einbeziehen */}
+            {routines.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setIncludeRoutines(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.md, padding: S.sm, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: includeRoutines ? C.accent : C.border }}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: includeRoutines ? C.accent : C.borderStrong, backgroundColor: includeRoutines ? C.accent : 'transparent', justifyContent: 'center', alignItems: 'center' }}>
+                  {includeRoutines && <Feather name="check" size={13} color={C.bg} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[T.body, { color: C.text }]}>Meine Routinen einbeziehen</Text>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>{routines.length} Routine{routines.length !== 1 ? 'n' : ''} · KI nutzt deine Übungen</Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {(user?.trainingContext || user?.trainingContextFile?.content) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.md, padding: S.sm, backgroundColor: C.tint + '12', borderRadius: R.sm }}>
@@ -832,7 +1245,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
         {/* Empty state */}
         {!trainingPlan && !loading && !generating && (
           <View style={{ alignItems: 'center', paddingVertical: S.xxl }}>
-            <Text style={{ fontSize: 48, marginBottom: S.md }}>🏋️</Text>
+            <MaterialCommunityIcons name="weight-lifter" size={44} color={C.tint} style={{ marginBottom: S.md }} />
             <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>Dein persönlicher Coach</Text>
             <Text style={[T.caption, { color: C.textSecondary, textAlign: 'center', lineHeight: 20 }]}>
               Die KI erstellt einen maßgeschneiderten Wochenplan — basierend auf deinem Athletenprofil, Zielen und Wettkämpfen.
@@ -850,12 +1263,75 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               )}
             </View>
 
+            {/* Recovery-Coaching: schlecht erholt → heute leichter + Recovery-Flow */}
+            {recovery.level !== 'good' && recovery.hasData && (
+              <View style={{ backgroundColor: (recovery.poor ? C.danger : C.warning) + '14', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: (recovery.poor ? C.danger : C.warning) + '50' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: 4 }}>
+                  <Feather name="moon" size={15} color={recovery.poor ? C.danger : C.warning} />
+                  <Text style={[T.bodyMed, { color: recovery.poor ? C.danger : C.warning, flex: 1 }]}>{recovery.summaryDe}</Text>
+                </View>
+                {recovery.reasons.length > 0 && (
+                  <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.sm }]}>{recovery.reasons.join(' · ')}</Text>
+                )}
+                <View style={{ flexDirection: 'row', gap: S.sm }}>
+                  {todaySessionIdxs.length > 0 && (
+                    <TouchableOpacity
+                      onPress={handleEaseToday}
+                      disabled={easing || flowStarting}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: recovery.poor ? C.danger : C.warning, borderRadius: R.md, paddingVertical: 11, opacity: (easing || flowStarting) ? 0.6 : 1 }}
+                    >
+                      {easing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="trending-down" size={15} color="#fff" />}
+                      <Text style={[T.label, { color: '#fff', fontWeight: '700' }]}>{easing ? 'KI passt an…' : 'Einheit leichter'}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={handleRecoveryFlow}
+                    disabled={easing || flowStarting}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingVertical: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, opacity: (easing || flowStarting) ? 0.6 : 1 }}
+                  >
+                    {flowStarting ? <ActivityIndicator size="small" color={C.text} /> : <Feather name="wind" size={15} color={C.text} />}
+                    <Text style={[T.label, { color: C.text, fontWeight: '700' }]}>{flowStarting ? 'Flow…' : 'Recovery-Flow'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Überlastungs-Warnung + KI-Ausbalancieren (Button immer verfügbar) */}
+            {trainingConflicts.length > 0 ? (
+              <View style={{ backgroundColor: C.warning + '14', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.warning + '50' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: 6 }}>
+                  <Feather name="alert-triangle" size={15} color={C.warning} />
+                  <Text style={[T.bodyMed, { color: C.warning, flex: 1 }]}>Mögliche Überlastung</Text>
+                </View>
+                {trainingConflicts.map((c, i) => (
+                  <Text key={i} style={[T.caption, { color: C.textSecondary, marginBottom: 4 }]}>{c.message}</Text>
+                ))}
+                <TouchableOpacity
+                  onPress={handleRebalance}
+                  disabled={rebalancing}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.warning, borderRadius: R.md, paddingVertical: 12, marginTop: S.sm, opacity: rebalancing ? 0.6 : 1 }}
+                >
+                  {rebalancing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="shuffle" size={16} color="#fff" />}
+                  <Text style={[T.bodyMed, { color: '#fff', fontWeight: '700' }]}>{rebalancing ? 'KI balanciert…' : 'Plan ausbalancieren (KI)'}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handleRebalance}
+                disabled={rebalancing}
+                style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: R.sm, backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}
+              >
+                {rebalancing ? <ActivityIndicator size="small" color={C.textSecondary} /> : <Feather name="shuffle" size={13} color={C.textSecondary} />}
+                <Text style={[T.label, { color: C.textSecondary }]}>{rebalancing ? 'KI balanciert…' : 'Woche optimal verteilen (KI)'}</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Week day pills */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.lg }}>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 {DAY_SHORT.map((d, i) => {
                   const dSessions = sessionsByDay[i] || [];
-                  const isRest = dSessions.length === 0 || dSessions[0]?.is_rest;
+                  const isRest = dSessions.length === 0 || dSessions.every(s => s.is_rest);
                   const isDone = isWorkoutDone(i);
                   const isSelected = i === selectedDay;
                   const isToday = i === todayIdx;
@@ -877,7 +1353,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                       <View style={{ flexDirection: 'row', gap: 3, justifyContent: 'center', minHeight: 10 }}>
                         {isRest
                           ? <View style={{ width: 14, height: 3, borderRadius: 2, backgroundColor: isDone ? C.success + '60' : C.border }} />
-                          : dSessions.slice(0, 3).map((s, si) => {
+                          : dSessions.filter(s => !s.is_rest).slice(0, 3).map((s, si) => {
                               const iconName = SPORT_MCI[s.sport_type] || 'run';
                               const iconColor = isDone ? C.success : getSportColor(s.sport_type);
                               return <MaterialCommunityIcons key={si} name={iconName} size={10} color={iconColor} />;
@@ -895,16 +1371,23 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               <View>
                 <Text style={[T.h3, { color: C.text, marginBottom: S.md }]}>{DAYS[selectedDay]}</Text>
 
-                {daySessions[0]?.is_rest ? (
+                {(daySessions.length === 0 || daySessions.every(s => s.is_rest)) ? (
                   <View style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: S.xl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}>
-                    <Text style={{ fontSize: 40, marginBottom: S.md }}>😴</Text>
+                    <Feather name="moon" size={38} color={C.textTertiary} style={{ marginBottom: S.md }} />
                     <Text style={[T.h3, { color: C.text }]}>Ruhetag</Text>
                     <Text style={[T.caption, { color: C.textSecondary, marginTop: S.sm, textAlign: 'center' }]}>
                       Aktive Erholung, Dehnen oder Spaziergang sind ok.
                     </Text>
+                    <TouchableOpacity
+                      onPress={() => { const s = daySessions[0]; const idx = trainingPlan.sessions.indexOf(s); setEditIndex(idx); setEditSession(s); setShowSessionEdit(true); }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: S.md, paddingVertical: 6, paddingHorizontal: 10, borderRadius: R.sm, backgroundColor: C.bgSecondary, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
+                    >
+                      <Feather name="edit-2" size={13} color={C.textSecondary} />
+                      <Text style={[T.label, { color: C.textSecondary }]}>Bearbeiten / Verschieben</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
-                  daySessions.map((session, si) => {
+                  daySessions.filter(s => !s.is_rest).map((session, si) => {
                     const sc = getSportColor(session.sport_type);
                     const sessionDone = completedMap[`session_${session.id}`] || (si===0 && completedMap[`day_${selectedDay}`]);
                     return (
@@ -931,6 +1414,16 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                             <Feather name="info" size={14} color={C.textTertiary} style={{ marginTop: 2 }} />
                           </View>
                         </TouchableOpacity>
+
+                        {/* Workout-Profil (intervals.icu-Stil) */}
+                        {(() => {
+                          const profileSteps = getSessionSteps(session);
+                          return profileSteps.length > 0 ? (
+                            <View style={{ marginBottom: S.md }}>
+                              <WorkoutProfileChart steps={profileSteps} />
+                            </View>
+                          ) : null;
+                        })()}
 
                         {/* Exercises */}
                         {session.exercises?.map((ex, ei) => (
@@ -961,25 +1454,58 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                           );
                         })()}
 
-                        {/* Complete / Done */}
+                        {/* Hauptaktion: Einheit abschließen (gefüllt, klar dominant) */}
                         {!sessionDone ? (
-                          <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.md, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: `${sc}60`, backgroundColor: `${sc}10`, marginBottom: S.sm }}
-                            onPress={() => { setCompleteSession(session); setShowComplete(true); }}
-                          >
-                            <Feather name="check-circle" size={18} color={sc} />
-                            <Text style={[T.bodyMed, { color: sc }]}>
-                              {daySessions.length > 1 ? `Einheit ${si+1} abschließen` : 'Training abschließen'}
-                            </Text>
-                          </TouchableOpacity>
+                          session.sport_type === 'mobility' ? (
+                            <TouchableOpacity
+                              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg, paddingVertical: 16, backgroundColor: sc, marginBottom: S.sm, opacity: flowStarting ? 0.6 : 1 }}
+                              onPress={() => startMobilityFlow(session)}
+                              disabled={flowStarting}
+                              activeOpacity={0.85}
+                            >
+                              {flowStarting ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="play-circle" size={20} color="#fff" />}
+                              <Text style={[T.bodyMed, { color: '#fff', fontWeight: '800', fontSize: 16 }]}>{flowStarting ? 'KI erstellt Flow…' : 'Mobility-Flow starten'}</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg, paddingVertical: 16, backgroundColor: sc, marginBottom: S.sm, shadowColor: sc, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
+                              onPress={() => { setCompleteSession(session); setShowComplete(true); }}
+                              activeOpacity={0.85}
+                            >
+                              <Feather name="check-circle" size={20} color="#fff" />
+                              <Text style={[T.bodyMed, { color: '#fff', fontWeight: '800', fontSize: 16 }]}>
+                                Einheit abschließen
+                              </Text>
+                            </TouchableOpacity>
+                          )
                         ) : (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.success+'12', borderRadius: R.md, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.success+'40', marginBottom: S.sm }}>
-                            <Feather name="check-circle" size={18} color={C.success} />
-                            <Text style={[T.bodyMed, { color: C.success, marginLeft: S.sm }]}>
-                              {daySessions.length > 1 ? `Einheit ${si+1} abgeschlossen!` : 'Workout abgeschlossen!'}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.success, borderRadius: R.lg, paddingVertical: 16, marginBottom: S.sm }}>
+                            <Feather name="check-circle" size={20} color="#fff" />
+                            <Text style={[T.bodyMed, { color: '#fff', fontWeight: '800', fontSize: 16 }]}>
+                              Einheit abgeschlossen
                             </Text>
                           </View>
                         )}
+
+                        {/* Sekundäraktionen: dezent, untergeordnet */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.lg, marginBottom: S.sm }}>
+                          <TouchableOpacity
+                            onPress={() => { const idx = trainingPlan.sessions.indexOf(session); setEditIndex(idx); setEditSession(session); setShowSessionEdit(true); }}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 8 }}
+                            hitSlop={6}
+                          >
+                            <Feather name="edit-2" size={13} color={C.textTertiary} />
+                            <Text style={[T.caption, { color: C.textTertiary }]}>Bearbeiten</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => { const idx = trainingPlan.sessions.indexOf(session); setRegenIndex(idx); setShowRegen(true); }}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 8 }}
+                            hitSlop={6}
+                          >
+                            <Feather name="repeat" size={13} color={C.textTertiary} />
+                            <Text style={[T.caption, { color: C.textTertiary }]}>Austauschen</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     );
                   })
@@ -992,7 +1518,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
             <View style={{ backgroundColor: C.surface, borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
               {DAY_SHORT.map((d, i) => {
                 const dSessions = sessionsByDay[i] || [];
-                const isRest = dSessions.length === 0 || dSessions[0]?.is_rest;
+                const isRest = dSessions.length === 0 || dSessions.every(s => s.is_rest);
                 const done = isWorkoutDone(i);
                 const totalDur = dSessions.reduce((s, sess) => s + (sess.duration||0), 0);
                 return (
@@ -1035,6 +1561,39 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               })}
             </View>
           </Animated.View>
+        )}
+
+        {/* ── Importierte Aktivitäten (Intervals.icu) ── */}
+        {externalData?.intervals?.activities?.length > 0 && (
+          <View style={{ marginHorizontal: S.md, marginBottom: S.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
+              <Feather name="download" size={13} color={C.textSecondary} />
+              <Text style={[T.label, { color: C.textSecondary }]}>IMPORTIERT (INTERVALS.ICU)</Text>
+            </View>
+            {externalData.intervals.activities.map((act, i) => {
+              const distKm = act.distance ? (act.distance / 1000).toFixed(1) : null;
+              const durMin = act.moving_time ? Math.round(act.moving_time / 60) : null;
+              const sport = (act.type || act.sport_type || 'run').toLowerCase();
+              const sc = getSportColor(sport);
+              const dateStr = act.start_date_local
+                ? new Date(act.start_date_local).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+                : '';
+              return (
+                <View key={act.id || i} style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${sc}20`, alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialCommunityIcons name={SPORT_MCI[sport] || 'run'} size={18} color={sc} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{act.name || 'Aktivität'}</Text>
+                    <Text style={[T.caption, { color: C.textSecondary }]}>
+                      {[distKm && `${distKm} km`, durMin && `${durMin} Min`, act.average_heartrate && `${Math.round(act.average_heartrate)} bpm`].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {dateStr && <Text style={[T.caption, { color: C.textTertiary }]}>{dateStr}</Text>}
+                </View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </>

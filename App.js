@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { Linking } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useStore } from './src/store';
 import { useKraftStore } from './src/store/kraftStore';
+import { loadBaseUrl } from './src/api/client';
 import { useTheme, ThemeProvider } from './src/theme';
 import { AppStatusBar } from './src/components/ui';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 import HomeScreen from './src/screens/HomeScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
@@ -18,10 +21,13 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import RecipesScreen from './src/screens/RecipesScreen';
 import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
 import RecipeEditScreen from './src/screens/RecipeEditScreen';
+import RecipeWizardScreen from './src/screens/RecipeWizardScreen';
+import RecipeImportScreen from './src/screens/RecipeImportScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import BarcodeScannerScreen from './src/screens/BarcodeScannerScreen';
 import ScanScreen from './src/screens/ScanScreen';
+import FridgeScanScreen from './src/screens/FridgeScanScreen';
 import ProfilScreen from './src/screens/ProfilScreen';
 import DatePickerScreen from './src/screens/DatePickerScreen';
 import TrainingScreen from './src/screens/TrainingScreen';
@@ -33,8 +39,13 @@ import RoutineDetailScreen from './src/screens/kraft/RoutineDetailScreen';
 import ExerciseDatabaseScreen from './src/screens/kraft/ExerciseDatabaseScreen';
 import ExerciseDetailScreen from './src/screens/kraft/ExerciseDetailScreen';
 import KraftStatsScreen from './src/screens/kraft/KraftStatsScreen';
+import MobilityScreen from './src/screens/mobility/MobilityScreen';
+import MobilityAssessmentScreen from './src/screens/mobility/MobilityAssessmentScreen';
+import MobilityFlowScreen from './src/screens/mobility/MobilityFlowScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import ConnectedAppsScreen from './src/screens/ConnectedAppsScreen';
+import ShoppingListScreen from './src/screens/ShoppingListScreen';
+import CollectionDetailScreen from './src/screens/CollectionDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -148,10 +159,10 @@ function SubTabBar({ tabs, active, onChange }) {
 // ── Speisekammer: Inventar + Rezepte ─────────────────────────────
 function SpeisekammerTabs({ navigation, route }) {
   const [active, setActive] = useState('Inventar');
-  const tabBar = <SubTabBar tabs={['Inventar', 'Rezepte']} active={active} onChange={setActive} />;
-  return active === 'Inventar'
-    ? <InventoryScreen navigation={navigation} route={route} tabBar={tabBar} />
-    : <RecipesScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  const tabBar = <SubTabBar tabs={['Inventar', 'Rezepte', 'Einkauf']} active={active} onChange={setActive} />;
+  if (active === 'Inventar') return <InventoryScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  if (active === 'Rezepte') return <RecipesScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  return <ShoppingListScreen navigation={navigation} route={route} tabBar={tabBar} />;
 }
 
 // ── Tracken: Kalorien + Kalender ──────────────────────────────────
@@ -179,10 +190,14 @@ function SpeisekammerStack() {
       <Stack.Screen name="SpeisekammerTabs" component={SpeisekammerTabs} />
       <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} />
       <Stack.Screen name="ScanModal" component={ScanScreen} />
+      <Stack.Screen name="FridgeScan" component={FridgeScanScreen} options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="DatePicker" component={DatePickerScreen} />
       <Stack.Screen name="InventoryAdd" component={InventoryAddScreen} />
       <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} />
       <Stack.Screen name="RecipeEdit" component={RecipeEditScreen} />
+      <Stack.Screen name="RecipeWizard" component={RecipeWizardScreen} options={{ presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="RecipeImport" component={RecipeImportScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="CollectionDetail" component={CollectionDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -200,10 +215,10 @@ function TrackenStack() {
 // ── Training: Plan + Kraft Sub-Tabs ──────────────────────────────
 function TrainingKraftTabs({ navigation, route }) {
   const [active, setActive] = useState('Plan');
-  const tabBar = <SubTabBar tabs={['Plan', 'Kraft']} active={active} onChange={setActive} />;
-  return active === 'Plan'
-    ? <TrainingScreen navigation={navigation} route={route} tabBar={tabBar} />
-    : <KraftScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  const tabBar = <SubTabBar tabs={['Plan', 'Kraft', 'Mobility']} active={active} onChange={setActive} />;
+  if (active === 'Plan') return <TrainingScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  if (active === 'Kraft') return <KraftScreen navigation={navigation} route={route} tabBar={tabBar} />;
+  return <MobilityScreen navigation={navigation} route={route} tabBar={tabBar} />;
 }
 
 function TrainingStack() {
@@ -211,30 +226,36 @@ function TrainingStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="TrainingMain" component={TrainingKraftTabs} />
       <Stack.Screen name="RoutineDetail" component={RoutineDetailScreen} />
-      <Stack.Screen name="RoutineEdit" component={RoutineEditScreen} />
+      <Stack.Screen name="RoutineEdit" component={RoutineEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
       <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} />
       <Stack.Screen name="ExerciseDatabase" component={ExerciseDatabaseScreen} />
       <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
       <Stack.Screen name="KraftStats" component={KraftStatsScreen} />
+      <Stack.Screen name="MobilityAssessment" component={MobilityAssessmentScreen} options={{ presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="MobilityFlow" component={MobilityFlowScreen} options={{ presentation: 'fullScreenModal' }} />
     </Stack.Navigator>
   );
 }
 
 function ProfilStack() {
   const KoerperScreen = require('./src/screens/KoerperScreen').default;
+  const ProgressPhotosScreen = require('./src/screens/ProgressPhotosScreen').default;
   const SportprofilScreen = require('./src/screens/SportprofilScreen').default;
   const EinstellungenScreen = require('./src/screens/EinstellungenScreen').default;
   const KontoScreen = require('./src/screens/KontoScreen').default;
+  const HouseholdScreen = require('./src/screens/HouseholdScreen').default;
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfilMain" component={ProfilScreen} />
       <Stack.Screen name="Goals" component={GoalsScreen} />
       <Stack.Screen name="ConnectedApps" component={ConnectedAppsScreen} />
       <Stack.Screen name="Koerper" component={KoerperScreen} />
+      <Stack.Screen name="ProgressPhotos" component={ProgressPhotosScreen} />
       <Stack.Screen name="Sportprofil" component={SportprofilScreen} />
       <Stack.Screen name="Einstellungen" component={EinstellungenScreen} />
       <Stack.Screen name="Konto" component={KontoScreen} />
+      <Stack.Screen name="Household" component={HouseholdScreen} />
     </Stack.Navigator>
   );
 }
@@ -268,12 +289,32 @@ function MainTabs() {
   );
 }
 
+// ── Deep Link Handler ─────────────────────────────────────────────
+// Handles keepr://import?url=... from iOS Shortcuts in Share Sheet
+
+function handleDeepLink(url, navigationRef) {
+  if (!url || !navigationRef.current) return;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'import') {
+      const importUrl = parsed.searchParams.get('url');
+      if (importUrl) {
+        navigationRef.current.navigate('Speisekammer', {
+          screen: 'RecipeImport',
+          params: { url: importUrl },
+        });
+      }
+    }
+  } catch {}
+}
+
 // ── Root ──────────────────────────────────────────────────────────
 function AppContent() {
   const { user, init, updateProfile } = useStore();
   const kraftInit = useKraftStore(s => s.init);
   const [booting, setBooting] = useState(true);
   const { colors: C, isDark } = useTheme();
+  const navigationRef = useRef(null);
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -289,7 +330,11 @@ function AppContent() {
 
   useEffect(() => {
     kraftInit();
-    init().finally(() => setBooting(false));
+    loadBaseUrl().finally(() => init().finally(() => setBooting(false)));
+    // Handle deep links (keepr://import?url=...) from iOS Shortcuts
+    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url, navigationRef); });
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url, navigationRef));
+    return () => sub.remove();
   }, []);
 
   if (booting) {
@@ -305,7 +350,7 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer theme={navTheme} key={user ? 'logged-in' : 'logged-out'}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} key={user ? 'logged-in' : 'logged-out'}>
       <AppStatusBar />
       {user
         ? (user.onboardingComplete
@@ -324,10 +369,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

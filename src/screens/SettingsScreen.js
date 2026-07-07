@@ -1,5 +1,18 @@
+/**
+ * screens/SettingsScreen.js — Einstellungen (Legacy)
+ *
+ * Älterer Einstellungen-Screen (vor EinstellungenScreen.js).
+ * Erlaubt Gemini-Key setzen, Profil-Daten (Name, Kalorien-Ziele) bearbeiten, Logout.
+ *
+ * Hinweis: Verwendet eigene hardcodierte Farbpalette (C) statt useTheme().
+ * Dieser Screen wird ggf. durch EinstellungenScreen.js ersetzt (ROADMAP 1.3).
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
+
+// Internal
 import { useStore } from '../store';
 import { api } from '../api/client';
 
@@ -16,27 +29,27 @@ export default function SettingsScreen() {
   const [inviteCode, setInviteCode] = useState('');
 
   const saveProfile = async () => {
-    try { await updateProfile({ displayName, calorieGoal: parseInt(calorieGoal), proteinGoal: parseInt(proteinGoal), carbsGoal: parseInt(carbsGoal), fatGoal: parseInt(fatGoal) }); Alert.alert('✅ Gespeichert'); }
+    try { await updateProfile({ displayName, calorieGoal: parseInt(calorieGoal), proteinGoal: parseInt(proteinGoal), carbsGoal: parseInt(carbsGoal), fatGoal: parseInt(fatGoal) }); Alert.alert('Gespeichert'); }
     catch(e) { Alert.alert('Fehler', e.message); }
   };
 
   const joinHousehold = async () => {
     if (!inviteCode.trim()) return;
-    try { await api.joinHousehold(inviteCode.trim().toUpperCase()); Alert.alert('✅ Haushalt beigetreten!'); }
+    try { await api.joinHousehold(inviteCode.trim().toUpperCase()); Alert.alert('Haushalt beigetreten!'); }
     catch(e) { Alert.alert('Fehler', e.message); }
   };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 130 }}>
-      <Text style={styles.header}>⚙️ Einstellungen</Text>
+      <Text style={styles.header}>Einstellungen</Text>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>👤 Profil</Text>
+        <Text style={styles.sectionTitle}>Profil</Text>
         <Text style={styles.label}>Anzeigename</Text>
         <TextInput style={styles.input} value={displayName} onChangeText={setDisplayName} placeholderTextColor={C.text2} />
         <Text style={{ color: C.text2, fontSize: 13, marginBottom: 12 }}>Username: {user?.username}</Text>
       </View>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>🏠 Haushalt</Text>
+        <Text style={styles.sectionTitle}>Haushalt</Text>
         <Text style={styles.label}>Dein Einladungscode</Text>
         <View style={{ backgroundColor: C.surface2, borderRadius: 10, padding: 12, marginBottom: 14, alignItems: 'center' }}>
           <Text style={{ color: C.accent, fontSize: 28, fontWeight: '700', letterSpacing: 4 }}>{user?.inviteCode || '—'}</Text>
@@ -49,21 +62,21 @@ export default function SettingsScreen() {
         </View>
       </View>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>🎯 Kalorienziele</Text>
+        <Text style={styles.sectionTitle}>Kalorienziele</Text>
         {[['Tagesziel (kcal)', calorieGoal, setCalorieGoal],['Protein (g)', proteinGoal, setProteinGoal],['Kohlenhydrate (g)', carbsGoal, setCarbsGoal],['Fett (g)', fatGoal, setFatGoal]].map(([label, val, setter]) => (
           <View key={label} style={{ marginBottom: 10 }}>
             <Text style={styles.label}>{label}</Text>
             <TextInput style={styles.input} value={val} onChangeText={setter} keyboardType="numeric" placeholderTextColor={C.text2} />
           </View>
         ))}
-        <TouchableOpacity style={styles.btnPrimary} onPress={saveProfile}><Text style={styles.btnPrimaryText}>💾 Speichern</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.btnPrimary} onPress={saveProfile}><Text style={styles.btnPrimaryText}>Speichern</Text></TouchableOpacity>
       </View>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>🤖 Gemini API</Text>
+        <Text style={styles.sectionTitle}>Gemini API</Text>
         <Text style={{ color: C.text2, fontSize: 13, marginBottom: 10 }}>Kostenlos unter aistudio.google.com/app/apikey</Text>
         <Text style={styles.label}>API Key</Text>
         <TextInput style={[styles.input, { marginBottom: 10 }]} value={gKey} onChangeText={setGKey} placeholder="AIza..." placeholderTextColor={C.text2} secureTextEntry />
-        <TouchableOpacity style={styles.btnSm} onPress={() => { setGeminiKey(gKey); Alert.alert('✅ Gespeichert'); }}><Text style={styles.btnSmText}>Speichern</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.btnSm} onPress={() => { setGeminiKey(gKey); Alert.alert('Gespeichert'); }}><Text style={styles.btnSmText}>Speichern</Text></TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.btnDanger} onPress={() => Alert.alert('Abmelden?', '', [{ text: 'Abbrechen' }, { text: 'Abmelden', style: 'destructive', onPress: logout }])}>
         <Text style={{ color: C.red, fontWeight: '600' }}>Abmelden</Text>

@@ -1,8 +1,30 @@
+/**
+ * screens/EinstellungenScreen.js — App-Einstellungen
+ *
+ * Einstellungen-Screen mit Sektionen für Darstellung, Konto und Info.
+ * Unterstützt:
+ *   - Dark/Light Mode Toggle (useThemeMode)
+ *   - Gemini API-Key setzen (AsyncStorage)
+ *   - Logout
+ *   - Links zu Datenschutz/Impressum via Linking
+ *
+ * SectionLabel — Wiederverwendbare Sektion-Überschrift
+ */
+
+// React/RN
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Alert, TextInput, Share, ActivityIndicator } from 'react-native';
+
+// Third-party
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
+
+// Internal
 import { useTheme, useThemeMode } from '../theme';
 import { useStore } from '../store';
+import { getBaseUrl, setBaseUrl, DEFAULT_BASE_URL, api } from '../api/client';
+import { removeSecureItem } from '../utils/secureStorage';
+import { requestNotificationPermission, scheduleMealReminders, scheduleTrainingReminder, scheduleMHDWarnings } from '../notifications';
 
 function SectionLabel({ title }) {
   const { colors: C, type: T, spacing: S } = useTheme();
@@ -50,20 +72,92 @@ function SectionCard({ children }) {
 export default function EinstellungenScreen({ navigation }) {
   const { colors: C, spacing: S, type: T } = useTheme();
   const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
-  const { user, updateProfile } = useStore();
+  const { user, updateProfile, logout, inventory } = useStore();
 
   const [notifMeals, setNotifMeals] = useState(user?.notifMeals ?? true);
   const [notifTraining, setNotifTraining] = useState(user?.notifTraining ?? true);
   const [notifExpiry, setNotifExpiry] = useState(user?.notifExpiry ?? true);
   const [notifTips, setNotifTips] = useState(user?.notifTips ?? false);
 
+  const [serverUrl, setServerUrl] = useState(getBaseUrl());
+  const [urlSaved, setUrlSaved] = useState(false);
+
+  const handleSaveUrl = () => {
+    if (!serverUrl.trim()) {
+      Alert.alert('Ungültige URL', 'Bitte eine gültige Server-URL eingeben.');
+      return;
+    }
+    setBaseUrl(serverUrl.trim());
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  };
+
+  const handleResetUrl = () => {
+    setServerUrl(DEFAULT_BASE_URL);
+    setBaseUrl(DEFAULT_BASE_URL);
+  };
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (type) => {
+    setExporting(true);
+    try {
+      let csv = '';
+      let filename = '';
+
+      if (type === 'sessions') {
+        const sessions = await api.getSessions(500);
+        csv = 'Datum,Routine,Dauer (min),Volumen (kg),Sätze\n';
+        csv += sessions.map(s =>
+          [
+            s.started_at?.split('T')[0] || '',
+            `"${(s.routine_name || 'Workout').replace(/"/g, '""')}"`,
+            Math.round((s.duration_seconds || 0) / 60),
+            Math.round(s.total_volume_kg || 0),
+            s.total_sets || 0,
+          ].join(',')
+        ).join('\n');
+        filename = `keepr_training_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (type === 'calories') {
+        const today = new Date().toISOString().split('T')[0];
+        const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const logs = await api.getDailyLogs(from, today);
+        csv = 'Datum,Kalorien,Protein (g),Kohlenhydrate (g),Fett (g)\n';
+        csv += (logs || []).map(l =>
+          [l.date, l.calories || 0, l.protein || 0, l.carbs || 0, l.fat || 0].join(',')
+        ).join('\n');
+        filename = `keepr_kalorien_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+
+      await Share.share({ message: csv, title: filename });
+    } catch (e) {
+      Alert.alert('Export fehlgeschlagen', e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const save = async (updates) => {
     try { await updateProfile({ ...user, ...updates }); } catch(e) {}
   };
 
-  const toggleNotif = (key, val, setter) => {
+  const toggleNotif = async (key, val, setter) => {
     setter(val);
     save({ [key]: val });
+    if (val) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        setter(false);
+        Alert.alert(
+          'Benachrichtigungen nicht verfügbar',
+          'Benachrichtigungen funktionieren nur in der installierten App (EAS Build), nicht in Expo Go.',
+        );
+        return;
+      }
+    }
+    if (key === 'notifMeals') scheduleMealReminders(val);
+    if (key === 'notifTraining') scheduleTrainingReminder(val);
+    if (key === 'notifExpiry') scheduleMHDWarnings(inventory, val);
   };
 
   const toggle = (val, key, setter) => (
@@ -161,14 +255,25 @@ export default function EinstellungenScreen({ navigation }) {
           <SettingsRow
             icon="shield"
             label="Datenschutzerklärung"
-            onPress={() => Alert.alert('Datenschutz', 'Deine Daten werden ausschließlich auf deinem eigenen Server gespeichert und nicht an Dritte weitergegeben.')}
+            onPress={() => Alert.alert(
+              'Datenschutz',
+              'keepr speichert deine Konto-, Ernährungs- und Trainingsdaten auf dem konfigurierten keepr-Server. ' +
+              'Sensible Zugangsdaten (Login-Token, API-Schlüssel) werden verschlüsselt im Schlüsselbund deines Geräts abgelegt.\n\n' +
+              'Für einzelne Funktionen werden Daten an Drittanbieter übermittelt:\n' +
+              '• KI-Funktionen (Rezepte, Plananalyse): Google Gemini\n' +
+              '• Trainings-Sync (optional, nur wenn verbunden): Strava, Intervals.icu, Oura\n\n' +
+              'Du kannst deine Daten jederzeit über „Alle Daten löschen" entfernen.'
+            )}
           />
           <Divider />
           <SettingsRow
             icon="lock"
-            label="Lokale Datenspeicherung"
-            value="Aktiviert"
-            onPress={() => Alert.alert('Datenspeicherung', 'Alle App-Daten werden lokal auf deinem Gerät und deinem eigenen Server gespeichert.')}
+            label="Datenspeicherung"
+            value="Verschlüsselt"
+            onPress={() => Alert.alert(
+              'Datenspeicherung',
+              'App-Daten liegen auf dem keepr-Server. Login-Token und verbundene API-Schlüssel werden zusätzlich verschlüsselt im Geräte-Schlüsselbund (iOS Keychain / Android Keystore) gespeichert.'
+            )}
           />
           <Divider />
           <SettingsRow
@@ -182,10 +287,110 @@ export default function EinstellungenScreen({ navigation }) {
                 'Dies löscht dauerhaft alle deine Einträge, Gewichtsverläufe und Einstellungen. Diese Aktion kann nicht rückgängig gemacht werden.',
                 [
                   { text: 'Abbrechen', style: 'cancel' },
-                  { text: 'Löschen', style: 'destructive', onPress: () => Alert.alert('Nicht verfügbar', 'Diese Funktion ist noch nicht implementiert.') },
+                  { text: 'Löschen', style: 'destructive', onPress: async () => {
+            await AsyncStorage.clear();
+            // Verschlüsselte Werte (Keychain) separat entfernen — AsyncStorage.clear() erfasst sie nicht
+            await Promise.all([
+              removeSecureItem('auth_token'),
+              removeSecureItem('connected_intervals_credentials'),
+              removeSecureItem('connected_oura_token'),
+            ]);
+            await logout();
+          }},
                 ]
               )
             }
+          />
+          <Divider />
+          <SettingsRow
+            icon="user-x"
+            label="Konto endgültig löschen"
+            destructive
+            chevron={false}
+            onPress={() =>
+              Alert.alert(
+                'Konto endgültig löschen?',
+                'Dein Account und alle serverseitig gespeicherten Daten (Training, Ernährung, Körperwerte) werden unwiderruflich gelöscht. Fortfahren?',
+                [
+                  { text: 'Abbrechen', style: 'cancel' },
+                  { text: 'Konto löschen', style: 'destructive', onPress: async () => {
+                    try {
+                      await api.deleteAccount();
+                    } catch (e) {
+                      Alert.alert('Fehler', e.message || 'Konto konnte nicht gelöscht werden.');
+                      return;
+                    }
+                    await AsyncStorage.clear();
+                    await Promise.all([
+                      removeSecureItem('auth_token'),
+                      removeSecureItem('connected_intervals_credentials'),
+                      removeSecureItem('connected_oura_token'),
+                    ]);
+                    await logout();
+                  }},
+                ]
+              )
+            }
+          />
+        </SectionCard>
+
+        {/* Daten exportieren */}
+        <SectionLabel title="Daten exportieren" />
+        <SectionCard>
+          <SettingsRow
+            icon="activity"
+            label="Training exportieren"
+            value="CSV"
+            onPress={() => handleExport('sessions')}
+            rightElement={exporting ? <ActivityIndicator size="small" color={C.accent} /> : undefined}
+          />
+          <Divider />
+          <SettingsRow
+            icon="pie-chart"
+            label="Kalorien exportieren"
+            value="CSV · 90 Tage"
+            onPress={() => handleExport('calories')}
+            rightElement={exporting ? <ActivityIndicator size="small" color={C.accent} /> : undefined}
+          />
+        </SectionCard>
+
+        {/* Verbindung / Server */}
+        <SectionLabel title="Verbindung" />
+        <SectionCard>
+          <View style={{ paddingHorizontal: S.md, paddingTop: 12, paddingBottom: 4 }}>
+            <Text style={{ color: C.textTertiary, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>SERVER-URL</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+              <TextInput
+                style={{ flex: 1, backgroundColor: C.bgSecondary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: C.text, fontSize: 14, fontFamily: 'Courier' }}
+                value={serverUrl}
+                onChangeText={setServerUrl}
+                placeholder={DEFAULT_BASE_URL}
+                placeholderTextColor={C.textTertiary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveUrl}
+              />
+              <TouchableOpacity
+                onPress={handleSaveUrl}
+                style={{ backgroundColor: urlSaved ? '#22C55E' : C.accent, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 }}
+              >
+                <Text style={{ color: C.bg, fontWeight: '700', fontSize: 13 }}>
+                  {urlSaved ? '✓' : 'OK'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: C.textTertiary, fontSize: 11, marginTop: 6, marginBottom: 10, lineHeight: 16 }}>
+              LAN: http://192.168.x.x:3001 · Extern: https://deine-url.trycloudflare.com
+            </Text>
+          </View>
+          <Divider />
+          <SettingsRow
+            icon="refresh-cw"
+            label="Standard wiederherstellen"
+            chevron={false}
+            onPress={handleResetUrl}
           />
         </SectionCard>
 

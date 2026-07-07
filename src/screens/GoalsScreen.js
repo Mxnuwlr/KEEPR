@@ -1,29 +1,44 @@
+/**
+ * screens/GoalsScreen.js — Ziele & Wettkampfplanung
+ *
+ * Verwaltet Sport-Ziele (Rennen, Wettkämpfe) mit Zieldatum und Distanz.
+ * SPORT_TYPES — Verfügbare Sportarten mit Emoji, Farbe und key
+ *
+ * Ziele werden via api.getGoals() / api.saveGoal() / api.deleteGoal() persistiert.
+ * DateTimePicker für Zieldatum (iOS/Android).
+ */
+
+// React/RN
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Modal, TextInput, Alert, RefreshControl, Platform,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Internal
 import { api } from '../api/client';
 import { useTheme } from '../theme';
 
 const SPORT_TYPES = [
-  { key: 'run',       label: 'Laufen',    emoji: '🏃', color: '#4CAF50' },
-  { key: 'bike',      label: 'Radfahren', emoji: '🚴', color: '#FF9800' },
-  { key: 'swim',      label: 'Schwimmen', emoji: '🏊', color: '#2196F3' },
-  { key: 'triathlon', label: 'Triathlon', emoji: '🥇', color: '#FF5722' },
-  { key: 'strength',  label: 'Kraft',     emoji: '🏋️', color: '#E8C547' },
-  { key: 'other',     label: 'Sonstiges', emoji: '🎯', color: '#9C27B0' },
+  { key: 'run',       label: 'Laufen',    mci: 'run', color: '#4CAF50' },
+  { key: 'bike',      label: 'Radfahren', mci: 'bike', color: '#FF9800' },
+  { key: 'swim',      label: 'Schwimmen', mci: 'swim', color: '#2196F3' },
+  { key: 'triathlon', label: 'Triathlon', mci: 'medal', color: '#FF5722' },
+  { key: 'strength',  label: 'Kraft',     mci: 'weight-lifter', color: '#E8C547' },
+  { key: 'other',     label: 'Sonstiges', mci: 'target', color: '#9C27B0' },
 ];
 
 const GOAL_TYPES = [
-  { key: 'race',     label: 'Wettkampf',  icon: '🏁' },
-  { key: 'fitness',  label: 'Fitness',    icon: '💪' },
-  { key: 'weight',   label: 'Gewicht',    icon: '⚖️' },
-  { key: 'habit',    label: 'Gewohnheit', icon: '📅' },
-  { key: 'distance', label: 'Distanz',    icon: '🗺️' },
-  { key: 'time',     label: 'Zeit / PB',  icon: '⏱️' },
+  { key: 'race',     label: 'Wettkampf',  mci: 'flag-checkered' },
+  { key: 'fitness',  label: 'Fitness',    mci: 'arm-flex' },
+  { key: 'weight',   label: 'Gewicht',    mci: 'scale-balance' },
+  { key: 'habit',    label: 'Gewohnheit', mci: 'calendar-check' },
+  { key: 'distance', label: 'Distanz',    mci: 'map-marker-distance' },
+  { key: 'time',     label: 'Zeit / PB',  mci: 'timer-outline' },
 ];
 
 const DISTANCES = ['Sprint', 'Olympic', 'Half (70.3)', 'Full (140.6)', '5k', '10k', 'Half Marathon', 'Marathon', '50k', '100k', 'Sonstiges'];
@@ -94,7 +109,7 @@ function GoalFormModal({ visible, goal, onClose, onSave }) {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: goalType === g.key ? C.tint : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: goalType === g.key ? C.tint : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
               onPress={() => setGoalType(g.key)}
             >
-              <Text style={{ fontSize: 13 }}>{g.icon}</Text>
+              <MaterialCommunityIcons name={g.mci} size={14} color={goalType === g.key ? C.tintText : C.textSecondary} />
               <Text style={[T.label, { color: goalType === g.key ? C.tintText : C.textSecondary }]}>{g.label}</Text>
             </TouchableOpacity>
           ))}
@@ -108,7 +123,7 @@ function GoalFormModal({ visible, goal, onClose, onSave }) {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: sportType === s.key ? s.color : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: sportType === s.key ? s.color : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
               onPress={() => setSportType(s.key)}
             >
-              <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
+              <MaterialCommunityIcons name={s.mci} size={14} color={sportType === s.key ? '#fff' : C.textSecondary} />
               <Text style={[T.label, { color: sportType === s.key ? '#fff' : C.textSecondary }]}>{s.label}</Text>
             </TouchableOpacity>
           ))}
@@ -201,7 +216,7 @@ function GoalCard({ goal, onEdit, onDelete }) {
     <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, opacity: isExpired ? 0.55 : 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm }}>
         <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${sport.color}20`, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 24 }}>{sport.emoji}</Text>
+          <MaterialCommunityIcons name={sport.mci} size={24} color={sport.color} />
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
@@ -373,7 +388,7 @@ export default function GoalsScreen() {
           <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', marginTop: 40 }]}>Lade…</Text>
         ) : filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontSize: 48, marginBottom: S.sm }}>🏁</Text>
+            <MaterialCommunityIcons name="flag-checkered" size={44} color={C.tint} style={{ marginBottom: S.sm }} />
             <Text style={[T.h3, { color: C.text, marginBottom: 6 }]}>Noch keine Ziele</Text>
             <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', marginBottom: S.lg }]}>
               {filter === 'upcoming' ? 'Füge deinen nächsten Wettkampf oder dein Fitnessziel hinzu.' : 'Keine vergangenen Ziele.'}

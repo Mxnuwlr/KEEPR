@@ -1,11 +1,32 @@
+/**
+ * components/ui.js — Gemeinsame UI-Basiskomponenten
+ *
+ * Exports:
+ *   AppStatusBar   — Statusleiste mit korrektem barStyle für Light/Dark Mode
+ *   ScreenHeader   — Navigations-Header mit Back-Button und optionalem Rechts-Button
+ *   Surface        — Karten-Container (optional als TouchableOpacity)
+ *   PrimaryButton  — Primärer CTA-Button (gefüllt, accent-farbig)
+ *   GhostButton    — Sekundärer Button (Outline, optionale danger-Variante)
+ *   FilterChips    — Horizontale Chip-Leiste für Filter-Auswahl
+ *   MenuRow        — Einstellungs-Zeile mit Icon, Label, Value und Chevron
+ *   Divider        — Dünne Trennlinie (hairline)
+ *   SectionLabel   — Abschnitts-Überschrift (GROSSBUCHSTABEN, tertiary color)
+ *   FAB            — Floating Action Button (position: absolute, rechts unten)
+ */
+
+// React/RN
 import React from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, Platform,
 } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
-import { useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Internal
+import { useTheme } from '../theme';
 
 // ── AppStatusBar ─────────────────────────────────────────────────
 export function AppStatusBar() {

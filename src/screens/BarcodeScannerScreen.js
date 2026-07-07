@@ -1,8 +1,23 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * screens/BarcodeScannerScreen.js — Barcode-Scanner für Inventar
+ *
+ * Öffnet Kamera (expo-camera CameraView) und scannt EAN/QR-Barcodes.
+ * Bei Scan: lookupBarcode() → Produkt-Vorschlag → navigation.navigate('InventoryAdd', { item })
+ *
+ * Verhindert Doppel-Scans mit scannedRef (ref statt state, kein Re-Render nötig).
+ * Fordert Kamera-Permission via useCameraPermissions() an.
+ */
+
+// React/RN
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+
+// Third-party
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+
+// Internal
 import { lookupBarcode } from '../api/client';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
@@ -10,33 +25,42 @@ import { useTheme } from '../theme';
 export default function BarcodeScannerScreen({ route, navigation }) {
   const { colors: C, type: T, radius: R } = useTheme();
   const insets = useSafeAreaInsets();
-  const { onScanned } = route.params || {};
   const { geminiKey } = useStore();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [torch, setTorch] = useState(false);
+  const isProcessing = useRef(false);
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
   }, []);
 
   const handleBarCodeScanned = async ({ data }) => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
     setLoading(true);
     try {
       const product = await lookupBarcode(data, geminiKey);
-      setLoading(false);
-      if (onScanned) {
-        onScanned(product);
-        navigation.goBack();
-      }
+      navigation.replace('InventoryAdd', {
+        item: {
+          name: product.name,
+          qty: product.qty || '1 Stück',
+          category: product.category || 'Sonstiges',
+          caloriesPer100g: product.caloriesPer100g,
+          proteinPer100g: product.proteinPer100g,
+          carbsPer100g: product.carbsPer100g,
+          fatPer100g: product.fatPer100g,
+        }
+      });
     } catch(e) {
+      isProcessing.current = false;
       setLoading(false);
       Alert.alert(
         'Nicht gefunden',
         'Produkt nicht in Datenbank.',
         [
           { text: 'Nochmal', style: 'cancel' },
-          { text: 'Manuell', onPress: () => { if (onScanned) onScanned({ manual: true }); navigation.goBack(); } }
+          { text: 'Manuell', onPress: () => navigation.replace('InventoryAdd', {}) },
         ]
       );
     }

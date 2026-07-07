@@ -1,14 +1,33 @@
+/**
+ * screens/kraft/ExerciseDetailScreen.js — Übungsdetails
+ *
+ * Drei Tabs:
+ *   Zusammenfassung — MuscleMap + PR-Anzeige + Kurzanleitung
+ *   Anleitung       — Vollbild-Bild + Schritt-für-Schritt
+ *   Historie        — 1RM-Verlauf (LineChart, Epley-Formel) + Session-History
+ *
+ * Epley-Formel für 1RM-Schätzung: estimated1RM = weight × (1 + reps/30)
+ * Wird auch für den Chart und PR-Vergleich verwendet.
+ */
+
+// React/RN
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, Linking,
+  ActivityIndicator, Image, Linking, Dimensions,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Internal
+import LineChart from '../../components/LineChart';
 import { useTheme } from '../../theme';
 import { api } from '../../api/client';
 import { useKraftStore } from '../../store/kraftStore';
-import { MUSCLE_COLORS, getExerciseImageUrl } from '../../data/exercises';
+import { EXERCISES, MUSCLE_COLORS, getExerciseImageUrl, muscleIcon } from '../../data/exercises';
+import MuscleMap from '../../components/MuscleMap';
 
 const TABS = ['Zusammenfassung', 'Anleitung', 'Historie'];
 
@@ -64,11 +83,7 @@ function ExerciseImageSection({ exercise, muscleColor, colors: C, spacing: S, ra
         ) : (
           <View style={{ alignItems: 'center', gap: 10 }}>
             <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: muscleColor + '22', justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 36 }}>
-                {exercise.muscle_group === 'Brust' ? '🫀' : exercise.muscle_group === 'Rücken' ? '🏋️' :
-                 exercise.muscle_group === 'Beine' ? '🦵' : exercise.muscle_group === 'Schultern' ? '💙' :
-                 exercise.muscle_group === 'Bauch' ? '⚡' : exercise.muscle_group === 'Gesäß' ? '🍑' : '💪'}
-              </Text>
+              <MaterialCommunityIcons name={muscleIcon(exercise.muscle_group)} size={40} color={muscleColor} />
             </View>
             <Text style={{ color: C.textTertiary, fontSize: 13 }}>Kein Bild verfügbar</Text>
           </View>
@@ -101,6 +116,7 @@ export default function ExerciseDetailScreen({ navigation, route }) {
   const { prs } = useKraftStore();
   const pr = prs[exercise.id];
   const muscleColor = MUSCLE_COLORS[exercise.muscle_group] || C.accent;
+  const chartWidth = Dimensions.get('window').width - 80;
 
   // Short description: first 3 steps joined
   const shortDesc = exercise.instructions_de
@@ -120,7 +136,7 @@ export default function ExerciseDetailScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
-      <View style={{ paddingTop: insets.top + S.sm, paddingHorizontal: S.md, paddingBottom: 130, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
+      <View style={{ paddingTop: insets.top + S.sm, paddingHorizontal: S.md, paddingBottom: S.sm, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: S.sm }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: S.sm, marginTop: 3 }}>
             <Feather name="arrow-left" size={22} color={C.text} />
@@ -157,7 +173,14 @@ export default function ExerciseDetailScreen({ navigation, route }) {
         {/* ── ZUSAMMENFASSUNG ── */}
         {activeTab === 'Zusammenfassung' && (
           <>
-            <ExerciseImageSection exercise={exercise} muscleColor={muscleColor} colors={C} spacing={S} radius={R} />
+            {/* Muscle Map */}
+            <View style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.md, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <MuscleMap
+                workedMuscles={(EXERCISES.find(e => e.id === exercise.id) || exercise).worked_muscles}
+                muscleGroup={exercise.muscle_group}
+                colors={C}
+              />
+            </View>
 
             {/* PR */}
             {pr ? (
@@ -171,7 +194,7 @@ export default function ExerciseDetailScreen({ navigation, route }) {
               </View>
             ) : (
               <View style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.md, alignItems: 'center' }}>
-                <Text style={{ color: C.textTertiary }}>Noch kein Rekord — leg los! 🚀</Text>
+                <Text style={{ color: C.textTertiary }}>Noch kein Rekord — leg los!</Text>
               </View>
             )}
 
@@ -209,25 +232,42 @@ export default function ExerciseDetailScreen({ navigation, route }) {
             <ActivityIndicator color={muscleColor} style={{ marginTop: 40 }} />
           ) : history.length === 0 ? (
             <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <Text style={{ fontSize: 40 }}>📭</Text>
+              <Feather name="inbox" size={36} color={C.textTertiary} />
               <Text style={{ color: C.textTertiary, marginTop: 10 }}>Noch keine Einträge</Text>
             </View>
           ) : (
-            history.map((session, i) => (
-              <View key={i} style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.sm }}>
-                <Text style={{ color: C.textSecondary, fontSize: 12, marginBottom: 6 }}>
-                  {new Date(session.finished_at || session.started_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                  {session.routine_name ? ` · ${session.routine_name}` : ''}
-                </Text>
-                {(session.sets || []).map((s, si) => (
-                  <View key={si} style={{ flexDirection: 'row', paddingVertical: 3 }}>
-                    <Text style={{ color: C.textTertiary, width: 24, fontSize: 13 }}>{s.set_number}.</Text>
-                    <Text style={{ color: C.text, fontWeight: '600', flex: 1 }}>{s.weight_kg} kg</Text>
-                    <Text style={{ color: C.textSecondary, fontSize: 13 }}>× {s.reps} Wdh</Text>
+            <>
+              {(() => {
+                const chartData = [...history].reverse().map((session, i) => {
+                  const best1RM = Math.max(...session.sets.map(s => Math.round((parseFloat(s.weight_kg)||0) * (1 + (parseInt(s.reps)||0)/30))));
+                  return {
+                    value: best1RM,
+                    label: i % 2 === 0 ? new Date(session.finished_at || session.started_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '',
+                  };
+                });
+                return chartData.length >= 2 ? (
+                  <View style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.md }}>
+                    <Text style={{ color: C.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.sm }}>1RM VERLAUF (GESCHÄTZT)</Text>
+                    <LineChart data={chartData} width={chartWidth} height={120} color={muscleColor} colors={C} />
                   </View>
-                ))}
-              </View>
-            ))
+                ) : null;
+              })()}
+              {history.map((session, i) => (
+                <View key={i} style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.sm }}>
+                  <Text style={{ color: C.textSecondary, fontSize: 12, marginBottom: 6 }}>
+                    {new Date(session.finished_at || session.started_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    {session.routine_name ? ` · ${session.routine_name}` : ''}
+                  </Text>
+                  {(session.sets || []).map((s, si) => (
+                    <View key={si} style={{ flexDirection: 'row', paddingVertical: 3 }}>
+                      <Text style={{ color: C.textTertiary, width: 24, fontSize: 13 }}>{s.set_number}.</Text>
+                      <Text style={{ color: C.text, fontWeight: '600', flex: 1 }}>{s.weight_kg} kg</Text>
+                      <Text style={{ color: C.textSecondary, fontSize: 13 }}>× {s.reps} Wdh</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </>
           )
         )}
       </ScrollView>

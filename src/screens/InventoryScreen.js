@@ -1,11 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * screens/InventoryScreen.js — Speisekammer / Inventarverwaltung
+ *
+ * Hauptbildschirm für das Inventar. Zeigt alle Artikel gefiltert nach Kategorie
+ * und sortiert nach MHD-Status (abgelaufen → bald ablaufend → ok).
+ * Erlaubt Bearbeiten, Löschen (ActionSheet) und Hinzufügen via BarcodeScan oder manuell.
+ *
+ * Farbkodierung:
+ *   CATEGORY_COLORS — Farbakzente pro Kategorie (Chips, Icons)
+ *   getStatus(mhd) → 'expired' | 'soon' | 'ok' — für Statusbadges
+ */
+
+// React/RN
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, TextInput, Modal,
-  ScrollView, Alert, Animated, PanResponder, StyleSheet, ActionSheetIOS,
+  ScrollView, Alert, StyleSheet, ActionSheetIOS, Dimensions,
 } from 'react-native';
+
+// Third-party
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 
@@ -27,21 +44,11 @@ function getStatus(mhd) {
 function getDays(mhd) { return mhd ? Math.floor((new Date(mhd) - new Date()) / 86400000) : null; }
 function fmtDate(s) { return s ? new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''; }
 
+const SCREEN_W = Dimensions.get('window').width;
+const DELETE_W = 80;
+
 function SwipeableItem({ item, onDelete, onEdit, onUse, colors: C, radius: R, spacing: S, type: T }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-
-  const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
-    onPanResponderMove: (_, g) => { if (g.dx < 0) translateX.setValue(Math.max(g.dx, -80)); },
-    onPanResponderRelease: (_, g) => {
-      Animated.spring(translateX, {
-        toValue: g.dx < -50 ? -80 : 0,
-        useNativeDriver: true, tension: 100, friction: 10,
-      }).start();
-    },
-  });
-
-  const closeSwipe = () => Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+  const scrollRef = useRef(null);
 
   const st = getStatus(item.mhd);
   const days = getDays(item.mhd);
@@ -49,63 +56,62 @@ function SwipeableItem({ item, onDelete, onEdit, onUse, colors: C, radius: R, sp
   const statusColor = st === 'expired' ? C.danger : st === 'soon' ? C.warning : C.success;
   const statusText = st === 'expired' ? 'Abgelaufen' : st === 'soon' ? `${days}d` : days !== null ? `${days}d` : '—';
 
+  const close = () => scrollRef.current?.scrollTo({ x: 0, animated: true });
+
   return (
-    <View style={{ marginBottom: 1, overflow: 'hidden' }}>
-      {/* Delete bg */}
-      <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, backgroundColor: C.danger, alignItems: 'center', justifyContent: 'center' }}>
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => Alert.alert('Löschen?', item.name, [
-            { text: 'Abbrechen', onPress: closeSwipe },
-            { text: 'Löschen', style: 'destructive', onPress: () => onDelete(item.id) },
-          ])}
-        >
-          <Feather name="trash-2" size={18} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 10, marginTop: 2 }}>Löschen</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
-        <TouchableOpacity
-          style={{
-            backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center',
-            paddingVertical: 12, paddingHorizontal: S.md, gap: S.sm,
-            borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
-          }}
-          onPress={() => { closeSwipe(); onUse(item); }}
-          onLongPress={() => Alert.alert(item.name, undefined, [
-            { text: 'Benutzt', onPress: () => onUse(item) },
-            { text: 'Bearbeiten', onPress: () => onEdit(item) },
-            { text: 'Löschen', style: 'destructive', onPress: () => onDelete(item.id) },
-            { text: 'Abbrechen', style: 'cancel' },
-          ])}
-          activeOpacity={0.7}
-        >
-          {/* Category dot */}
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: catColor }} />
-
-          <View style={{ flex: 1 }}>
-            <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{item.name}</Text>
-            <Text style={[T.caption, { color: C.textSecondary }]}>
-              {item.qty || '1 Stück'}{item.mhd ? ` · ${fmtDate(item.mhd)}` : ''}
-            </Text>
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      bounces={false}
+      directionalLockEnabled
+      snapToOffsets={[0, DELETE_W]}
+      decelerationRate="fast"
+      scrollEventThrottle={16}
+      style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}
+    >
+      {/* Main row */}
+      <TouchableOpacity
+        style={{
+          width: SCREEN_W,
+          backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center',
+          paddingVertical: 12, paddingHorizontal: S.md, gap: S.sm,
+        }}
+        onPress={() => { close(); onEdit(item); }}
+        onLongPress={() => Alert.alert(item.name, undefined, [
+          { text: 'Benutzt', onPress: () => onUse(item) },
+          { text: 'Bearbeiten', onPress: () => onEdit(item) },
+          { text: 'Löschen', style: 'destructive', onPress: () => onDelete(item.id) },
+          { text: 'Abbrechen', style: 'cancel' },
+        ])}
+        activeOpacity={0.7}
+      >
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: catColor }} />
+        <View style={{ flex: 1 }}>
+          <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{item.name}</Text>
+          <Text style={[T.caption, { color: C.textSecondary }]}>
+            {item.qty || '1 Stück'}{item.mhd ? ` · ${fmtDate(item.mhd)}` : ''}
+          </Text>
+        </View>
+        {!!item.mhd && (
+          <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm, backgroundColor: statusColor + '18' }}>
+            <Text style={[T.caption, { color: statusColor, fontWeight: '600' }]}>{statusText}</Text>
           </View>
+        )}
+      </TouchableOpacity>
 
-          {item.mhd && (
-            <View style={{
-              paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm,
-              backgroundColor: statusColor + '18',
-            }}>
-              <Text style={[T.caption, { color: statusColor, fontWeight: '600' }]}>{statusText}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity onPress={() => onEdit(item)} hitSlop={8}>
-            <Feather name="edit-2" size={14} color={C.textTertiary} />
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+      {/* Delete button */}
+      <TouchableOpacity
+        style={{ width: DELETE_W, backgroundColor: C.danger, justifyContent: 'center', alignItems: 'center' }}
+        onPress={() => Alert.alert('Löschen?', item.name, [
+          { text: 'Abbrechen', style: 'cancel', onPress: close },
+          { text: 'Löschen', style: 'destructive', onPress: () => onDelete(item.id) },
+        ])}
+      >
+        <Feather name="trash-2" size={18} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 10, marginTop: 2 }}>Löschen</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
@@ -122,7 +128,18 @@ export default function InventoryScreen({ navigation, tabBar }) {
 
   useEffect(() => { fetchInventory(); }, []);
 
-  const filtered = inventory.filter(i => {
+  const expiring = useMemo(
+    () => inventory.filter(i => ['expired', 'soon'].includes(getStatus(i.mhd))).length,
+    [inventory]
+  );
+
+  const FILTERS = useMemo(() => [
+    { value: 'all', label: `Alle (${inventory.length})` },
+    ...(expiring > 0 ? [{ value: 'expiring', label: `Läuft ab (${expiring})` }] : []),
+    ...CATEGORIES.filter(c => inventory.some(i => i.category === c)).map(c => ({ value: c, label: c })),
+  ], [inventory, expiring]);
+
+  const filtered = useMemo(() => inventory.filter(i => {
     if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filter === 'all') return true;
     if (filter === 'expiring') return getStatus(i.mhd) === 'expired' || getStatus(i.mhd) === 'soon';
@@ -130,15 +147,7 @@ export default function InventoryScreen({ navigation, tabBar }) {
   }).sort((a, b) => {
     const order = { expired: 0, soon: 1, unknown: 2, ok: 3 };
     return (order[getStatus(a.mhd)] ?? 3) - (order[getStatus(b.mhd)] ?? 3);
-  });
-
-  const expiring = inventory.filter(i => ['expired', 'soon'].includes(getStatus(i.mhd))).length;
-
-  const FILTERS = [
-    { value: 'all', label: `Alle (${inventory.length})` },
-    ...(expiring > 0 ? [{ value: 'expiring', label: `Läuft ab (${expiring})` }] : []),
-    ...CATEGORIES.filter(c => inventory.some(i => i.category === c)).map(c => ({ value: c, label: c })),
-  ];
+  }), [inventory, search, filter]);
 
   const UNITS = ['Stück', 'g', 'kg', 'ml', 'L', 'Packung', 'Dose', 'Flasche', 'Beutel', 'Tüte'];
 
@@ -190,7 +199,7 @@ export default function InventoryScreen({ navigation, tabBar }) {
               <Feather name="x" size={16} color={C.textSecondary} />
             </TouchableOpacity>
           : <TouchableOpacity
-              onPress={() => navigation.navigate('BarcodeScanner', { onScanned: async (p) => { try { await addItem(p); } catch (e) {} } })}
+              onPress={() => navigation.navigate('BarcodeScanner')}
               hitSlop={8}
             >
               <Feather name="maximize" size={18} color={C.textSecondary} />

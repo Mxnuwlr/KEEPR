@@ -1,0 +1,1808 @@
+[
+  {
+    "slug": "ankle-knee-to-wall",
+    "name": "Knöchel an die Wand",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Knie über die Zehen Richtung Wand schieben, Ferse bleibt am Boden.",
+    "prompt": "athletic person performing a kneeling ankle dorsiflexion knee-to-wall drill, side view, front knee tracking forward over the toes, heel staying flat on the floor",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-circles",
+    "name": "Knöchelkreisen",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Fuß langsam in beide Richtungen kreisen, voller Bewegungsumfang.",
+    "prompt": "person seated lifting one foot and slowly rotating the ankle in full circles, close up on the foot and ankle",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-calf-stretch-wall",
+    "name": "Wadendehnung an der Wand",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Hinteres Bein gestreckt, Ferse am Boden, Hüfte nach vorn.",
+    "prompt": "person doing a straight-leg calf stretch against a wall, back leg extended, heel pressed into the floor, side view",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "ankle-soleus-stretch",
+    "name": "Soleus-Dehnung (gebeugtes Knie)",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Hinteres Knie leicht beugen, Ferse bleibt unten, tiefe Wade dehnen.",
+    "prompt": "person doing a bent-knee soleus calf stretch in a lunge, back knee slightly bent, heel down, side view",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "ankle-heel-raises",
+    "name": "Wadenheben kontrolliert",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Langsam auf die Zehenspitzen, oben halten, langsam ablassen.",
+    "prompt": "person performing slow controlled single-leg calf raises, rising onto the toes and lowering, side view",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "ankle-eversion-inversion",
+    "name": "Fuß kippen (innen/außen)",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Fuß langsam nach innen und außen kippen, kontrolliert, Knie ruhig.",
+    "prompt": "person seated slowly tilting one foot inward and outward, controlled ankle eversion and inversion, close up",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-toe-raises",
+    "name": "Zehen anheben (Schienbein)",
+    "zone": "ankle",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Fußspitzen anheben, Fersen am Boden, Schienbein aktiv.",
+    "prompt": "person standing lifting the toes and front of the feet off the floor with heels down, activating the shins",
+    "tags": [
+      "stabilize",
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-deep-squat-heel-drive",
+    "name": "Hocke mit Fersendruck",
+    "zone": "ankle",
+    "sides": "bi",
+    "level": "hard",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "In der tiefen Hocke Knie über die Zehen, Fersen aktiv in den Boden.",
+    "prompt": "person in a deep squat actively driving the heels into the floor and the knees forward over the toes, ankle loading",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-band-distraction",
+    "name": "Knöchel-Distraktion (Band)",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "band"
+    ],
+    "cues": "Band zieht den Knöchel nach hinten, Knie nach vorn über die Zehen.",
+    "prompt": "person doing a banded ankle joint distraction, resistance band looped around the ankle pulling back while the knee drives forward over the toes",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "ankle-calf-roll",
+    "name": "Wade ausrollen",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Wade auf dem Roller langsam ausrollen, an Verspannungen verweilen.",
+    "prompt": "person rolling the calf muscle slowly on a foam roller, pausing on tight spots, seated on the floor",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "ankle-foot-ball-roll",
+    "name": "Fußsohle ausrollen",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_ball"
+    ],
+    "cues": "Fußsohle auf einem Ball langsam ausrollen, sanfter Druck.",
+    "prompt": "person rolling the sole of the foot on a small massage ball while standing, releasing the plantar fascia",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "ankle-calf-massage-gun",
+    "name": "Wade mit Massage Gun",
+    "zone": "ankle",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_gun"
+    ],
+    "cues": "Massage Gun langsam über die Wade führen, harte Stellen länger.",
+    "prompt": "person using a percussion massage gun slowly over the calf muscle, seated, relaxed leg",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "hips-90-90-switch",
+    "name": "90/90 Hüftwechsel",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Im Sitzen beide Knie 90°, kontrolliert von Seite zu Seite wechseln.",
+    "prompt": "person seated on the floor in a 90/90 hip position, rotating both legs from one side to the other in a controlled hip switch",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "hips-deep-squat-hold",
+    "name": "Tiefe Hocke halten",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Tief in die Hocke, Fersen am Boden, Brust aufrecht, Ellbogen drücken die Knie nach außen.",
+    "prompt": "person holding a deep bodyweight squat, heels flat, chest upright, elbows pressing knees outward",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-couch-stretch",
+    "name": "Couch-Stretch (Hüftbeuger)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "hard",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Hinteres Knie am Boden, Fuß hoch, Becken aufrichten, Hüfte nach vorn.",
+    "prompt": "person in a couch stretch with back foot elevated against a wall, kneeling on the floor, pelvis tucked, stretching the hip flexor, side view",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-pigeon-stretch",
+    "name": "Taube (Gesäßdehnung)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Vorderes Schienbein quer, Becken gerade, Oberkörper nach vorn senken.",
+    "prompt": "person in a pigeon pose stretch, front shin across the floor, torso leaning forward over the front leg, glute stretch",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-fire-hydrant",
+    "name": "Fire Hydrant (Hüfte abduzieren)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Im Vierfüßler Knie seitlich anheben, Rumpf bleibt stabil.",
+    "prompt": "person on all fours lifting one bent knee out to the side, fire hydrant hip mobility drill, stable torso",
+    "tags": [
+      "mobilize",
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "hips-hip-cars",
+    "name": "Hüft-CARs (Kreisen)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Im Stand Knie groß und langsam kreisen, maximaler Bewegungsumfang.",
+    "prompt": "person standing on one leg performing slow controlled hip circles (CARs) with the other knee, full range of motion",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "hips-adductor-rock",
+    "name": "Adduktoren-Wippen",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Ein Bein seitlich gestreckt, im Vierfüßler nach hinten wippen, Innenseite dehnen.",
+    "prompt": "person on all fours with one leg extended to the side, rocking the hips back and forth to stretch the inner thigh adductor",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-glute-bridge",
+    "name": "Glute Bridge",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf dem Rücken Becken heben, oben Gesäß fest anspannen.",
+    "prompt": "person lying on back performing a glute bridge, lifting the pelvis and squeezing the glutes at the top",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "hips-cossack-squat",
+    "name": "Cossack Squat",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "hard",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Breiter Stand, auf eine Seite tief absinken, anderes Bein gestreckt.",
+    "prompt": "person performing a cossack squat, wide stance, sinking deep over one bent leg while the other stays straight",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-frog-stretch",
+    "name": "Frosch-Dehnung",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Knie weit auseinander, Schienbeine parallel, Becken sanft zurückschieben.",
+    "prompt": "person in a frog stretch on the floor, knees wide apart, shins parallel, gently rocking the hips back",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "hips-clamshell",
+    "name": "Clamshell (Mini-Band)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "mini_band"
+    ],
+    "cues": "Seitlage, Knie gegen das Band öffnen, Becken bleibt stabil.",
+    "prompt": "person lying on their side performing a clamshell with a mini resistance band around the knees, opening the top knee",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "hips-monster-walk",
+    "name": "Monster Walk (Mini-Band)",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "mini_band"
+    ],
+    "cues": "Band um die Knie, in der Halbhocke seitlich gehen, Spannung halten.",
+    "prompt": "person with a mini resistance band around the knees walking sideways in a half-squat, keeping band tension, glute activation",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "hips-band-distraction",
+    "name": "Hüft-Distraktion (Band)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "band"
+    ],
+    "cues": "Band hoch in die Leiste, ins gebeugte Knie lehnen, Hüfte lösen.",
+    "prompt": "person doing a banded hip joint distraction, heavy resistance band high in the hip crease, leaning into a bent front knee",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "hips-pigeon-on-block",
+    "name": "Taube auf Block",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [
+      "block"
+    ],
+    "cues": "Taube mit Block unter dem Gesäß, sanfter, gut bei Steifheit.",
+    "prompt": "person in a supported pigeon pose with a yoga block under the hip, gentler glute stretch, side view",
+    "tags": [
+      "stretch",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "hips-supported-squat-block",
+    "name": "Hocke auf Block",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [
+      "block"
+    ],
+    "cues": "Tief in die Hocke, auf einem Block sitzend, Fersen unten, Brust auf.",
+    "prompt": "person sitting in a deep squat supported on a yoga block, heels down, upright chest, hip opening",
+    "tags": [
+      "mobilize",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "hips-glute-ball-release",
+    "name": "Gesäß ausrollen (Ball)",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "massage_ball"
+    ],
+    "cues": "Auf einem Ball unter dem Gesäß sitzen, Verspannungen lösen.",
+    "prompt": "person seated on a massage ball placed under one glute, releasing tension, leaning onto that side",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "posterior-jefferson-curl",
+    "name": "Jefferson Curl",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "hard",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Wirbel für Wirbel langsam abrollen und wieder aufrollen, Beine gestreckt.",
+    "prompt": "person performing a slow standing jefferson curl, rolling down segment by segment with straight legs and rolling back up",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "posterior-hamstring-stretch",
+    "name": "Beinrückseite dehnen",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Ein Bein gestreckt vor, Hüfte nach hinten, Brust zur Zehe.",
+    "prompt": "person doing a standing single-leg hamstring stretch, front leg straight, hips hinging back, chest toward the toes",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "posterior-good-morning",
+    "name": "Good Morning (Hüftbeuge)",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Leicht gebeugte Knie, Hüfte nach hinten schieben, Rücken gerade.",
+    "prompt": "person performing bodyweight good mornings, slight knee bend, hips hinging back with a flat neutral back",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "posterior-downward-dog",
+    "name": "Herabschauender Hund",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Hüfte hoch, Fersen Richtung Boden, abwechselnd Wade dehnen.",
+    "prompt": "person in a downward dog yoga pose, hips lifted high, alternately pressing heels toward the floor, full posterior chain stretch",
+    "tags": [
+      "stretch",
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "posterior-seated-forward-fold",
+    "name": "Sitzende Vorbeuge",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Beine gestreckt, langer Rücken, Oberkörper nach vorn über die Beine.",
+    "prompt": "person seated on the floor with legs extended, hinging forward over the legs with a long spine, hamstring stretch",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "posterior-nerve-floss",
+    "name": "Ischias-Nervenmobilisation",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Im Sitzen Bein strecken und Fuß anziehen, dann beugen, rhythmisch.",
+    "prompt": "person seated performing a sciatic nerve floss, extending one knee while dorsiflexing the foot then releasing, rhythmic motion",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "posterior-strap-hamstring",
+    "name": "Beinrückseite mit Gurt",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "strap"
+    ],
+    "cues": "Rücklage, Gurt um den Fuß, gestrecktes Bein zu sich ziehen.",
+    "prompt": "person lying on the back with a yoga strap around one foot, pulling the straight leg toward the body, hamstring stretch",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "posterior-strap-leg-lower",
+    "name": "Bein senken mit Gurt",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "strap"
+    ],
+    "cues": "Mit Gurt das gestreckte Bein langsam senken und wieder halten.",
+    "prompt": "person lying on the back using a strap to slowly lower and control a straight leg, eccentric hamstring control",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "posterior-single-leg-rdl-reach",
+    "name": "Einbein-Hüftbeuge",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf einem Bein Hüfte beugen, Hände Richtung Boden, Rücken gerade.",
+    "prompt": "person performing a slow single-leg hip hinge, reaching the hands toward the floor with a flat back, free leg extending back",
+    "tags": [
+      "mobilize",
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "posterior-standing-pike-roll",
+    "name": "Wade/Bein ausrollen",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Unterschenkel über den Roller, hintere Kette langsam lösen.",
+    "prompt": "person seated rolling the back of the lower leg over a foam roller, releasing the posterior chain",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "posterior-hamstring-massage-gun",
+    "name": "Oberschenkel hinten (Massage Gun)",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_gun"
+    ],
+    "cues": "Massage Gun in langsamen Bahnen über die Oberschenkelrückseite.",
+    "prompt": "person using a percussion massage gun in slow passes over the back of the thigh hamstrings, seated",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "posterior-cat-pull-back",
+    "name": "Fersensitz-Zug",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Vierfüßler, Gesäß zu den Fersen schieben, Rücken lang machen.",
+    "prompt": "person on all fours pushing the hips back toward the heels into a childs-pose-like stretch with a long spine",
+    "tags": [
+      "stretch",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "posterior-wall-hamstring",
+    "name": "Beinrückseite an der Wand",
+    "zone": "posterior",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Rücklage am Türrahmen, ein Bein gestreckt an der Wand hoch.",
+    "prompt": "person lying on the back near a doorway with one straight leg up against the wall, gentle hamstring stretch",
+    "tags": [
+      "stretch",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "posterior-lower-back-roll",
+    "name": "Unteren Rücken ausrollen",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Mittleren/unteren Rücken vorsichtig ausrollen, Rumpf gespannt.",
+    "prompt": "person carefully rolling the mid and lower back over a foam roller with a braced core, controlled",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "tspine-open-book",
+    "name": "Open Book (BWS-Rotation)",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Seitlage, Knie gestapelt, oberen Arm groß zur anderen Seite öffnen.",
+    "prompt": "person lying on their side with knees stacked, opening the top arm across the body in an open-book thoracic rotation",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-thread-the-needle",
+    "name": "Thread the Needle",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Vierfüßler, einen Arm unter dem Körper durchführen, Schulter zum Boden.",
+    "prompt": "person on all fours threading one arm underneath the body, rotating the thoracic spine, shoulder toward the floor",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "tspine-cat-cow",
+    "name": "Katze-Kuh",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Im Vierfüßler Rücken abwechselnd runden und strecken, mit dem Atem.",
+    "prompt": "person on all fours alternating between a rounded cat spine and an extended cow spine, flowing with the breath",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-quadruped-rotation",
+    "name": "Hand-am-Kopf Rotation",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Vierfüßler, Hand an den Kopf, Ellbogen nach oben rotieren.",
+    "prompt": "person on all fours with one hand behind the head, rotating the elbow up and open, thoracic rotation drill",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-extension-floor",
+    "name": "BWS-Extension am Boden",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Sphinx-Position, Brust öffnen, oberen Rücken sanft strecken.",
+    "prompt": "person in a sphinx position on the floor, opening the chest and gently extending the upper back",
+    "tags": [
+      "mobilize",
+      "stretch"
+    ]
+  },
+  {
+    "slug": "tspine-foam-roller-extension",
+    "name": "BWS über Foam Roller",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Foam Roller quer unter dem oberen Rücken, sanft darüber strecken.",
+    "prompt": "person lying with a foam roller placed horizontally under the upper back, gently extending the thoracic spine over the roller",
+    "tags": [
+      "release",
+      "mobilize",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "tspine-seated-rotation",
+    "name": "Sitzende Rotation",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Aufrecht sitzen, langsam nach links und rechts drehen, lang machen.",
+    "prompt": "person sitting tall and slowly rotating the upper body left and right, lengthening the spine, seated thoracic rotation",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-side-bend",
+    "name": "Seitneigung im Stand",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Im Stand einen Arm über den Kopf, zur Seite neigen, Flanke öffnen.",
+    "prompt": "person standing reaching one arm overhead and bending to the side, opening the lateral trunk and ribs",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "tspine-wall-angels",
+    "name": "Wall Angels",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Rücken an der Wand, Arme wie ein Engel hoch und runter, Kontakt halten.",
+    "prompt": "person standing with back against a wall moving the arms up and down like a snow angel while keeping contact, scapular and thoracic drill",
+    "tags": [
+      "mobilize",
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "tspine-prayer-rotation",
+    "name": "Fersensitz-Rotation",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Fersensitz, Hände vor, eine Hand zum Himmel rotieren, Blick folgt.",
+    "prompt": "person kneeling in a prayer position with hands forward, rotating one hand up to the sky while the gaze follows, thoracic rotation",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-foam-roller-snow-angel",
+    "name": "Schneeengel auf Roller",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Längs auf dem Roller liegen, Arme als Schneeengel bewegen, Brust auf.",
+    "prompt": "person lying lengthwise on a foam roller along the spine, moving the arms in a snow-angel motion, opening the chest",
+    "tags": [
+      "release",
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "tspine-thoracic-massage-gun",
+    "name": "Oberer Rücken (Massage Gun)",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_gun"
+    ],
+    "cues": "Massage Gun seitlich der Wirbelsäule am oberen Rücken, nicht auf Knochen.",
+    "prompt": "person using a percussion massage gun on the muscles beside the spine on the upper back, avoiding the bone",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "shoulders-wall-slides",
+    "name": "Wall Slides",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Rücken und Arme an der Wand, Arme langsam hoch und runter gleiten.",
+    "prompt": "person standing with back and arms against a wall, sliding the arms up and down in a wall slide shoulder drill",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-shoulder-cars",
+    "name": "Schulter-CARs",
+    "zone": "shoulders",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Einen Arm groß und langsam kreisen, maximaler Umfang, Rumpf stabil.",
+    "prompt": "person performing slow controlled shoulder circles (CARs) with one arm at full range of motion, stable torso",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-band-dislocates",
+    "name": "Band-Dislocates",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "band"
+    ],
+    "cues": "Band weit greifen, gestreckte Arme über den Kopf nach hinten führen.",
+    "prompt": "person holding a resistance band with a wide grip, passing the straight arms overhead and behind the body, shoulder dislocate drill",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-external-rotation-band",
+    "name": "Außenrotation mit Band",
+    "zone": "shoulders",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [
+      "band"
+    ],
+    "cues": "Ellbogen am Körper, Unterarm gegen das Band nach außen drehen.",
+    "prompt": "person performing banded shoulder external rotation, elbow tucked to the side, forearm rotating outward against a resistance band",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "shoulders-doorway-pec-stretch",
+    "name": "Brustdehnung im Türrahmen",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Unterarme am Rahmen, ein Schritt nach vorn, Brust öffnen.",
+    "prompt": "person stretching the chest in a doorway, forearms on the frame, stepping forward to open the pecs",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "shoulders-prone-ytw",
+    "name": "Y-T-W am Boden",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 45,
+    "equipment": [],
+    "cues": "Bauchlage, Arme nacheinander in Y, T und W heben, Schulterblätter aktiv.",
+    "prompt": "person lying face down raising the arms into Y, T and W shapes, activating the scapular and rear shoulder muscles",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "shoulders-thread-overhead",
+    "name": "Overhead an der Wand",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Rücken an der Wand, gestreckte Arme nach oben führen, Rippen unten.",
+    "prompt": "person with back against a wall raising straight arms overhead while keeping the lower back flat, overhead mobility drill",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-sleeper-stretch",
+    "name": "Sleeper Stretch",
+    "zone": "shoulders",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Seitlage, Oberarm 90°, Unterarm sanft Richtung Boden drücken.",
+    "prompt": "person lying on their side performing a sleeper stretch, upper arm at 90 degrees, gently pressing the forearm toward the floor",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "shoulders-stick-dislocates",
+    "name": "Dislocates mit Stab",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "stick"
+    ],
+    "cues": "Stab weit greifen, gestreckt über den Kopf nach hinten und zurück.",
+    "prompt": "person holding a mobility stick with a wide grip, passing the straight arms overhead and behind, shoulder dislocate with a stick",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-strap-overhead",
+    "name": "Overhead mit Gurt",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "strap"
+    ],
+    "cues": "Gurt mit beiden Händen, gestreckte Arme über den Kopf öffnen.",
+    "prompt": "person holding a yoga strap with both hands, opening the straight arms overhead, assisted shoulder flexion stretch",
+    "tags": [
+      "stretch",
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "shoulders-dead-hang",
+    "name": "Dead Hang an der Stange",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "hard",
+    "defaultSec": 35,
+    "equipment": [
+      "bar"
+    ],
+    "cues": "An der Stange hängen, Schultern aktiv, ruhig atmen.",
+    "prompt": "person hanging from a pull-up bar in a dead hang with active shoulders, decompressing, calm breathing",
+    "tags": [
+      "stretch",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "shoulders-scap-pullup",
+    "name": "Scapula-Pull",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [
+      "bar"
+    ],
+    "cues": "An der Stange nur die Schulterblätter nach unten ziehen, Arme gestreckt.",
+    "prompt": "person on a pull-up bar performing scapular pulls, depressing the shoulder blades with straight arms",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "shoulders-band-pull-apart",
+    "name": "Band Pull-Apart",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "band"
+    ],
+    "cues": "Band auf Brusthöhe gestreckt auseinanderziehen, Schulterblätter zusammen.",
+    "prompt": "person holding a resistance band at chest height with straight arms, pulling it apart and squeezing the shoulder blades",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "shoulders-pec-ball-release",
+    "name": "Brust lösen (Ball)",
+    "zone": "shoulders",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_ball"
+    ],
+    "cues": "Ball an die Brust/vordere Schulter an der Wand, langsam lösen.",
+    "prompt": "person pressing a massage ball into the chest and front of the shoulder against a wall, releasing the pec",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "shoulders-trap-massage-gun",
+    "name": "Nacken-Schulter (Massage Gun)",
+    "zone": "shoulders",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_gun"
+    ],
+    "cues": "Massage Gun über den oberen Trapez, sanft, nicht auf den Hals.",
+    "prompt": "person using a percussion massage gun over the upper trapezius and shoulder muscle, gentle, avoiding the neck",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "shoulders-prone-swimmers",
+    "name": "Rückenschwimmer am Boden",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Bauchlage, Arme von vorne zum Gesäß führen wie Rückenschwimmen.",
+    "prompt": "person lying face down sweeping the arms from overhead down to the hips like a backstroke, shoulder mobility",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "wrist-rocks",
+    "name": "Handgelenk-Wippen",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Vierfüßler, Hände flach, Gewicht vor und zurück wippen.",
+    "prompt": "person on all fours with palms flat on the floor, rocking the body weight forward and back to mobilize the wrists",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "wrist-flexion-extension",
+    "name": "Handgelenk Beugen/Strecken",
+    "zone": "wrist",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Arm gestreckt, Hand sanft nach oben und unten dehnen.",
+    "prompt": "person extending one arm and gently stretching the hand up and down to mobilize wrist flexion and extension",
+    "tags": [
+      "stretch",
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "wrist-circles",
+    "name": "Handgelenkkreisen",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Finger verschränken, Handgelenke langsam in beide Richtungen kreisen.",
+    "prompt": "person interlacing the fingers and slowly circling the wrists in both directions",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "wrist-prayer-stretch",
+    "name": "Gebets-Dehnung",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Handflächen vor der Brust zusammen, Hände langsam nach unten senken.",
+    "prompt": "person pressing palms together in front of the chest and lowering the hands to stretch the wrists and forearms",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "wrist-reverse-prayer",
+    "name": "Umgekehrte Gebets-Dehnung",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Handrücken vor dem Bauch zusammen, sanft nach oben führen.",
+    "prompt": "person pressing the backs of the hands together in front of the body and lifting them, reverse prayer wrist stretch",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "wrist-extension-floor",
+    "name": "Handgelenk-Streckung am Boden",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Vierfüßler, Finger zeigen zu den Knien, sanft zurücklehnen.",
+    "prompt": "person on all fours with the fingers pointing back toward the knees, gently leaning back to stretch the wrist extensors",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "wrist-flexion-floor",
+    "name": "Handrücken am Boden",
+    "zone": "wrist",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Vierfüßler, Handrücken am Boden, vorsichtig Gewicht geben.",
+    "prompt": "person on all fours placing the backs of the hands on the floor, carefully loading to stretch the wrist flexors",
+    "tags": [
+      "stretch"
+    ]
+  },
+  {
+    "slug": "wrist-forearm-roll",
+    "name": "Unterarm ausrollen",
+    "zone": "wrist",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "foam_roller"
+    ],
+    "cues": "Unterarm auf dem Roller ausrollen, dabei drehen.",
+    "prompt": "person rolling the forearm muscles over a foam roller on a table, rotating the arm",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "wrist-forearm-ball",
+    "name": "Unterarm lösen (Ball)",
+    "zone": "wrist",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [
+      "massage_ball"
+    ],
+    "cues": "Unterarm-Muskulatur mit dem Ball am Tisch lösen.",
+    "prompt": "person pressing a massage ball into the forearm muscles against a table, releasing tension",
+    "tags": [
+      "release",
+      "recovery"
+    ]
+  },
+  {
+    "slug": "wrist-stick-rotation",
+    "name": "Unterarm-Rotation mit Stab",
+    "zone": "wrist",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [
+      "stick"
+    ],
+    "cues": "Stab in der Hand, Unterarm dreht den Stab langsam hin und her.",
+    "prompt": "person holding a stick in one hand and slowly rotating the forearm to turn the stick back and forth, wrist and forearm mobility",
+    "tags": [
+      "mobilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-stand",
+    "name": "Einbeinstand",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf einem Bein stehen, Blick fix, Rumpf ruhig halten.",
+    "prompt": "person standing on one leg holding a stable single-leg balance, quiet torso, steady gaze",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-rdl",
+    "name": "Einbein-RDL (Kontrolle)",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf einem Bein Hüfte nach hinten kippen, anderes Bein gestreckt nach hinten.",
+    "prompt": "person performing a slow single-leg romanian deadlift balance, hinging at the hip with the free leg extending straight back",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-reach",
+    "name": "Einbein-Reach (Star)",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf einem Bein stehend mit dem freien Fuß in alle Richtungen tippen.",
+    "prompt": "person balancing on one leg while reaching the free foot to tap the floor in different directions, star excursion balance",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-tandem-stance",
+    "name": "Seiltänzer-Stand",
+    "zone": "balance",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Füße in einer Linie hintereinander, ruhig balancieren.",
+    "prompt": "person standing in a tandem heel-to-toe stance on a line, balancing quietly",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-step-down-control",
+    "name": "Step-Down Kniekontrolle",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Von einer Stufe langsam ablassen, Knie über dem Fuß, kein Einknicken.",
+    "prompt": "person performing a slow controlled single-leg step-down from a low step, knee tracking over the foot without collapsing inward",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-squat",
+    "name": "Einbein-Kniebeuge (Kontrolle)",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "hard",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Langsame Einbeinkniebeuge, Knie bleibt über dem Fuß, stabil.",
+    "prompt": "person performing a slow controlled single-leg squat, knee tracking over the foot, stable and upright",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-eyes-closed-stand",
+    "name": "Einbeinstand mit Augen zu",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "hard",
+    "defaultSec": 30,
+    "equipment": [],
+    "cues": "Einbeinstand mit geschlossenen Augen, Rumpf ruhig halten.",
+    "prompt": "person standing on one leg with eyes closed, maintaining a quiet stable balance",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-airplane",
+    "name": "Standwaage (Airplane)",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Auf einem Bein nach vorn kippen, Arme und Bein wie ein Flugzeug.",
+    "prompt": "person in a single-leg airplane balance, hinging forward with arms out to the sides and the back leg lifted like an airplane",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-clock",
+    "name": "Einbein-Uhr",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Auf einem Bein mit dem freien Fuß die Uhrzeiten antippen.",
+    "prompt": "person balancing on one leg tapping the free foot to different clock-face positions on the floor, stable standing leg",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-heel-toe-walk",
+    "name": "Ferse-Zehe-Gang",
+    "zone": "balance",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Auf einer Linie Ferse-an-Zehe vorwärts gehen, langsam.",
+    "prompt": "person walking slowly heel-to-toe along a straight line, tightrope balance walk",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-band-row",
+    "name": "Einbeinstand mit Band-Zug",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [
+      "mini_band"
+    ],
+    "cues": "Einbeinstand, Band ziehen, Hüfte stabil und gerade halten.",
+    "prompt": "person standing on one leg pulling a resistance band toward the body while keeping the hips level and stable, anti-rotation balance",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-unstable-squat",
+    "name": "Kniebeuge instabil",
+    "zone": "balance",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Langsame Kniebeuge auf weichem Untergrund/Kissen, Knie stabil.",
+    "prompt": "person doing slow squats on an unstable soft surface or cushion, keeping the knees stable, balance challenge",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-single-leg-deadlift-reach",
+    "name": "Einbein-RDL mit Reach",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "hard",
+    "defaultSec": 40,
+    "equipment": [],
+    "cues": "Einbein-RDL und mit der Gegenhand zum Boden, kontrolliert hoch.",
+    "prompt": "person performing a single-leg deadlift while reaching the opposite hand to the floor and returning under control, advanced balance",
+    "tags": [
+      "stabilize"
+    ]
+  },
+  {
+    "slug": "balance-lateral-hop-stick",
+    "name": "Seitlicher Sprung & Halten",
+    "zone": "balance",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "cues": "Seitlich auf ein Bein springen und 2 Sekunden stabil stehen bleiben.",
+    "prompt": "person hopping sideways onto one leg and sticking the landing for a couple of seconds, lateral stability hop",
+    "tags": [
+      "stabilize",
+      "dynamic"
+    ]
+  },
+  {
+    "slug": "warmup-leg-swings-front",
+    "name": "Beinschwingen vor/zurück",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Bein locker vor und zurück schwingen, Rumpf stabil.",
+    "prompt": "athletic person holding a wall and swinging one leg forward and back in a dynamic warm-up leg swing, side view"
+  },
+  {
+    "slug": "warmup-leg-swings-side",
+    "name": "Beinschwingen seitlich",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Bein locker seitlich hin und her schwingen, Becken ruhig.",
+    "prompt": "athletic person holding a wall and swinging one leg side to side in a dynamic lateral leg swing, front view"
+  },
+  {
+    "slug": "warmup-arm-circles",
+    "name": "Armkreisen",
+    "zone": "shoulders",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Arme groß vorwärts und rückwärts kreisen, locker.",
+    "prompt": "athletic person standing making large forward and backward arm circles, dynamic shoulder warm-up"
+  },
+  {
+    "slug": "warmup-worlds-greatest-stretch",
+    "name": "World's Greatest Stretch",
+    "zone": "hips",
+    "sides": "uni",
+    "level": "normal",
+    "defaultSec": 40,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize",
+      "stretch"
+    ],
+    "cues": "Tiefer Ausfallschritt, Ellbogen Richtung Boden, dann Arm zur Decke öffnen.",
+    "prompt": "athletic person in a deep lunge bringing the elbow to the floor then rotating the top arm up to the ceiling, worlds greatest stretch"
+  },
+  {
+    "slug": "warmup-inchworm",
+    "name": "Inchworm",
+    "zone": "posterior",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 35,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Aus dem Stand zu den Händen ablaufen in den Stütz und zurück.",
+    "prompt": "athletic person bending to the floor and walking the hands out to a plank and back, inchworm dynamic warm-up, side view"
+  },
+  {
+    "slug": "warmup-spinal-swings",
+    "name": "Rumpf-Schwünge",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Im Stand locker mit den Armen um die Wirbelsäule schwingen.",
+    "prompt": "athletic person standing and swinging the arms loosely around the body, rotational spinal warm-up"
+  },
+  {
+    "slug": "warmup-walking-knee-hug",
+    "name": "Knie-Umarmung im Gehen",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Im Gehen Knie anheben und kurz zur Brust ziehen.",
+    "prompt": "athletic person walking forward and pulling each knee up to the chest, dynamic hip warm-up"
+  },
+  {
+    "slug": "warmup-ankle-bounces",
+    "name": "Fußgelenk-Federn",
+    "zone": "ankle",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic",
+      "mobilize"
+    ],
+    "cues": "Leicht auf den Fußballen federn, Waden aktivieren.",
+    "prompt": "athletic person doing light springy bounces on the balls of the feet, ankle and calf activation"
+  },
+  {
+    "slug": "warmup-jumping-jacks",
+    "name": "Lockere Hampelmänner",
+    "zone": "fullbody",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 30,
+    "equipment": [],
+    "tags": [
+      "dynamic"
+    ],
+    "cues": "Lockere Hampelmänner zum Warmwerden, gleichmäßig atmen.",
+    "prompt": "athletic person doing easy jumping jacks to warm up the whole body, front view"
+  },
+  {
+    "slug": "recovery-legs-up-wall",
+    "name": "Beine hoch an der Wand",
+    "zone": "recovery",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 60,
+    "equipment": [],
+    "tags": [
+      "recovery",
+      "stretch"
+    ],
+    "cues": "Beine an der Wand hoch, Arme ablegen, ruhig atmen, entspannen.",
+    "prompt": "person lying on the back with the legs resting up a wall, relaxed arms, restorative legs-up-the-wall recovery pose"
+  },
+  {
+    "slug": "recovery-supine-twist",
+    "name": "Liegende Drehung",
+    "zone": "tspine",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [],
+    "tags": [
+      "recovery",
+      "stretch"
+    ],
+    "cues": "Rücklage, Knie zur Seite fallen lassen, Schultern bleiben am Boden.",
+    "prompt": "person lying on the back letting the bent knees drop to one side in a gentle supine spinal twist, shoulders flat"
+  },
+  {
+    "slug": "recovery-childs-pose",
+    "name": "Kindshaltung",
+    "zone": "recovery",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [],
+    "tags": [
+      "recovery",
+      "stretch"
+    ],
+    "cues": "Fersensitz, Arme lang nach vorn, Stirn ablegen, Rücken entspannen.",
+    "prompt": "person resting in childs pose, sitting back on the heels with arms extended forward and forehead down, restorative"
+  },
+  {
+    "slug": "recovery-happy-baby",
+    "name": "Happy Baby",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [],
+    "tags": [
+      "recovery",
+      "stretch"
+    ],
+    "cues": "Rücklage, Füße greifen, Knie zur Achsel ziehen, sanft wiegen.",
+    "prompt": "person lying on the back holding the feet with knees pulled toward the armpits in a happy baby pose, gentle"
+  },
+  {
+    "slug": "recovery-reclined-butterfly",
+    "name": "Liegender Schmetterling",
+    "zone": "hips",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 50,
+    "equipment": [],
+    "tags": [
+      "recovery",
+      "stretch"
+    ],
+    "cues": "Rücklage, Fußsohlen zusammen, Knie sinken auseinander, atmen.",
+    "prompt": "person lying on the back with the soles of the feet together and knees falling open, reclined butterfly hip opener"
+  },
+  {
+    "slug": "recovery-full-body-roll",
+    "name": "Ganzkörper ausrollen",
+    "zone": "fullbody",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 50,
+    "equipment": [
+      "foam_roller"
+    ],
+    "tags": [
+      "release",
+      "recovery"
+    ],
+    "cues": "Große Muskelgruppen locker über den Roller, an Spannungen verweilen.",
+    "prompt": "person foam rolling major muscle groups slowly for recovery, pausing on tight spots"
+  },
+  {
+    "slug": "recovery-savasana-breath",
+    "name": "Tiefenentspannung",
+    "zone": "breath",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 60,
+    "equipment": [],
+    "tags": [
+      "breath",
+      "recovery"
+    ],
+    "cues": "Flach liegen, völlig lösen, ruhig in den Bauch atmen.",
+    "prompt": "person lying flat on the back fully relaxed in a calm resting pose, deep relaxation"
+  },
+  {
+    "slug": "recovery-box-breathing",
+    "name": "Box-Atmung",
+    "zone": "breath",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 60,
+    "equipment": [],
+    "tags": [
+      "breath",
+      "recovery"
+    ],
+    "cues": "4 Sek ein, 4 halten, 4 aus, 4 halten — ruhig wiederholen.",
+    "prompt": "person sitting calmly practicing box breathing, relaxed posture, eyes closed, down-regulation"
+  },
+  {
+    "slug": "recovery-478-breathing",
+    "name": "4-7-8 Atmung",
+    "zone": "breath",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 60,
+    "equipment": [],
+    "tags": [
+      "breath",
+      "recovery"
+    ],
+    "cues": "4 Sek ein, 7 halten, 8 langsam aus — beruhigt das Nervensystem.",
+    "prompt": "person sitting calmly doing slow 4-7-8 breathing for relaxation, eyes closed"
+  },
+  {
+    "slug": "recovery-diaphragm-breath",
+    "name": "Bauchatmung",
+    "zone": "breath",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 50,
+    "equipment": [],
+    "tags": [
+      "breath",
+      "recovery"
+    ],
+    "cues": "Hand auf den Bauch, tief in den Bauch atmen, lang ausatmen.",
+    "prompt": "person lying down with a hand on the belly practicing deep diaphragmatic breathing"
+  },
+  {
+    "slug": "neck-upper-trap-stretch",
+    "name": "Nacken seitlich dehnen",
+    "zone": "neck",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "tags": [
+      "stretch",
+      "recovery"
+    ],
+    "cues": "Kopf sanft zur Seite neigen, Gegenhand zieht leicht Richtung Boden.",
+    "prompt": "person gently tilting the head to one side to stretch the upper trapezius of the neck, seated"
+  },
+  {
+    "slug": "neck-levator-stretch",
+    "name": "Nacken schräg dehnen",
+    "zone": "neck",
+    "sides": "uni",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "tags": [
+      "stretch",
+      "recovery"
+    ],
+    "cues": "Kopf zur Seite und nach unten (Achsel anschauen), sanft ziehen.",
+    "prompt": "person turning the head down toward the armpit to stretch the levator scapulae of the neck, gentle"
+  },
+  {
+    "slug": "neck-cars",
+    "name": "Nacken-Kreisen",
+    "zone": "neck",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "tags": [
+      "mobilize"
+    ],
+    "cues": "Kopf langsam und kontrolliert kreisen, voller Umfang.",
+    "prompt": "person slowly and controlled circling the head through full neck range of motion"
+  },
+  {
+    "slug": "neck-chin-tucks",
+    "name": "Chin Tucks",
+    "zone": "neck",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 35,
+    "equipment": [],
+    "tags": [
+      "stabilize",
+      "mobilize"
+    ],
+    "cues": "Kinn sanft zurückziehen (Doppelkinn), Nacken lang, kurz halten.",
+    "prompt": "person performing chin tucks, gently drawing the chin back to lengthen the back of the neck, deep neck flexor activation"
+  },
+  {
+    "slug": "neck-suboccipital-ball",
+    "name": "Nackenansatz lösen (Ball)",
+    "zone": "neck",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 40,
+    "equipment": [
+      "massage_ball"
+    ],
+    "tags": [
+      "release",
+      "recovery"
+    ],
+    "cues": "Hinterkopf auf zwei Bällen ablegen, Nackenansätze sanft lösen.",
+    "prompt": "person lying down with two massage balls under the base of the skull, gently releasing the suboccipital neck muscles"
+  },
+  {
+    "slug": "fullbody-sun-salute",
+    "name": "Sonnengruß-Flow",
+    "zone": "fullbody",
+    "sides": "bi",
+    "level": "normal",
+    "defaultSec": 50,
+    "equipment": [],
+    "tags": [
+      "mobilize",
+      "dynamic",
+      "stretch"
+    ],
+    "cues": "Fließend: Vorbeuge, Stütz, Hund, aufrollen — mit dem Atem.",
+    "prompt": "person flowing through a sun salutation sequence: forward fold, plank, downward dog, rising up, synchronized with breath"
+  },
+  {
+    "slug": "fullbody-cat-cow-thread",
+    "name": "Cat-Cow-Thread Flow",
+    "zone": "tspine",
+    "sides": "bi",
+    "level": "easy",
+    "defaultSec": 45,
+    "equipment": [],
+    "tags": [
+      "mobilize",
+      "recovery"
+    ],
+    "cues": "Katze-Kuh in Thread-the-Needle fließen lassen, ruhiger Rhythmus.",
+    "prompt": "person flowing on all fours from cat-cow into a thread-the-needle thoracic rotation, gentle continuous flow"
+  }
+]

@@ -1,8 +1,23 @@
+/**
+ * screens/SportprofilScreen.js — Sportprofil bearbeiten
+ *
+ * Bearbeitungsformular für das Sportprofil des Nutzers.
+ * SPORTS — Verfügbare Sportarten mit Icon (MaterialCommunityIcons) und Farbe
+ *
+ * secondsToPace() / paceToSeconds() für Pace-Eingabe und -Anzeige.
+ * Aktivitäts-Log-Foto via ImagePicker (expo-image-picker).
+ */
+
+// React/RN
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
+
+// Third-party
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+
+// Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { api, secondsToPace, paceToSeconds } from '../api/client';
@@ -12,12 +27,18 @@ const SPORTS = [
   { key: 'bike', label: 'Radfahren', icon: 'bike', color: '#FF9800' },
   { key: 'swim', label: 'Schwimmen', icon: 'swim', color: '#2196F3' },
   { key: 'strength', label: 'Kraft', icon: 'weight-lifter', color: '#E8C547' },
-  { key: 'yoga', label: 'Yoga', icon: 'yoga', color: '#9C27B0' },
   { key: 'triathlon', label: 'Triathlon', icon: 'run-fast', color: '#FF5722' },
+  { key: 'hyrox', label: 'Hyrox / Functional', icon: 'kettlebell', color: '#FBC02D' },
+  { key: 'calisthenics', label: 'Calisthenics', icon: 'human-handsup', color: '#F9A825' },
+  { key: 'row', label: 'Rudern', icon: 'rowing', color: '#26C6DA' },
+  { key: 'hike', label: 'Wandern', icon: 'hiking', color: '#689F38' },
+  { key: 'climbing', label: 'Klettern', icon: 'image-filter-hdr', color: '#795548' },
+  { key: 'pilates', label: 'Pilates', icon: 'yoga', color: '#AB47BC' },
   { key: 'mobility', label: 'Mobility', icon: 'human', color: '#CE93D8' },
 ];
 
 const FITNESS_LABELS = { beginner: 'Anfänger', intermediate: 'Mittel', advanced: 'Fortgeschriten', elite: 'Elite' };
+const VOLUME_LABELS = { short: 'Kurz & knackig', balanced: 'Ausgewogen', high: 'Umfangreich' };
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 function Field({ label, value, onSave, placeholder, unit, hint }) {
@@ -183,25 +204,28 @@ export default function SportprofilScreen({ navigation }) {
 
         {/* Sportarten */}
         {sectionLabel('Sportarten')}
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          {SPORTS.map((sport, idx) => {
+        <View style={{ marginHorizontal: S.md, flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
+          {SPORTS.map((sport) => {
             const active = (user?.sportTypes || []).includes(sport.key);
             return (
-              <React.Fragment key={sport.key}>
-                {idx > 0 && divider}
-                <TouchableOpacity
-                  onPress={() => toggleSport(sport.key)}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 }}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: active ? sport.color + '20' : C.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                    <MaterialCommunityIcons name={sport.icon} size={20} color={active ? sport.color : C.textTertiary} />
-                  </View>
-                  <Text style={[T.body, { flex: 1, color: active ? C.text : C.textSecondary }]}>{sport.label}</Text>
-                  <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: active ? sport.color : C.border, backgroundColor: active ? sport.color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                    {active && <Feather name="check" size={12} color="#fff" />}
-                  </View>
-                </TouchableOpacity>
-              </React.Fragment>
+              <TouchableOpacity
+                key={sport.key}
+                onPress={() => toggleSport(sport.key)}
+                activeOpacity={0.7}
+                style={{
+                  width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10,
+                  paddingVertical: 12, paddingHorizontal: 12, borderRadius: R.lg,
+                  backgroundColor: active ? sport.color + '18' : C.surface,
+                  borderWidth: active ? 1.5 : StyleSheet.hairlineWidth,
+                  borderColor: active ? sport.color : C.border,
+                }}
+              >
+                <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: active ? sport.color + '25' : C.bgTertiary, alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialCommunityIcons name={sport.icon} size={19} color={active ? sport.color : C.textTertiary} />
+                </View>
+                <Text style={[T.label, { flex: 1, color: active ? C.text : C.textSecondary }]} numberOfLines={2}>{sport.label}</Text>
+                {active && <Feather name="check-circle" size={16} color={sport.color} />}
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -235,6 +259,25 @@ export default function SportprofilScreen({ navigation }) {
               ))}
             </View>
           </View>
+          {divider}
+          <View style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
+            <Text style={[T.body, { color: C.textSecondary, marginBottom: 2 }]}>Trainingsumfang pro Einheit</Text>
+            <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.sm }]}>Wie viele Übungen die KI pro Kraft-Einheit einplant</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {Object.entries(VOLUME_LABELS).map(([id, label]) => {
+                const active = (user?.sessionVolumePref || 'balanced') === id;
+                return (
+                  <TouchableOpacity key={id} style={{ flex: 1, paddingVertical: 8, borderRadius: R.sm, backgroundColor: active ? C.accent : C.bgTertiary, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: active ? C.accent : C.border }} onPress={() => save({ sessionVolumePref: id })}>
+                    <Text style={[T.label, { color: active ? C.accentText : C.textSecondary, fontSize: 10 }]} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          {divider}
+          <Field label="Übungen pro Krafteinheit" value={user?.preferredExercises} onSave={v => save({ preferredExercises: parseInt(v) || null })} placeholder="z.B. 6" hint="Wunsch — leer = KI entscheidet" />
+          {divider}
+          <Field label="Wunsch-Einheitsdauer" value={user?.preferredSessionMin} onSave={v => save({ preferredSessionMin: parseInt(v) || null })} placeholder="z.B. 60" unit="Min" hint="Leer = KI entscheidet" />
         </View>
 
         {/* Leistungswerte */}
@@ -296,14 +339,15 @@ export default function SportprofilScreen({ navigation }) {
         <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
           <View style={{ padding: S.md }}>
             <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.sm, lineHeight: 18 }]}>
-              Diese Hinweise werden beim Erstellen deines Trainingsplans an die KI übergeben — Wettkämpfe, Präferenzen, etc.
+              Sag der KI in eigenen Worten, wie du dein Training willst — z.B. wie viele Übungen pro Einheit,
+              wie lange die Einheiten sein sollen, Wettkämpfe, bevorzugte Tageszeit. Wird beim Plan-Erstellen mit höchster Priorität berücksichtigt.
             </Text>
             <TextInput
               style={{ backgroundColor: C.bgSecondary, borderRadius: R.md, padding: S.md, color: C.text, fontSize: 14, minHeight: 100, textAlignVertical: 'top', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, lineHeight: 20 }}
               value={contextDraft}
               onChangeText={setContextDraft}
               multiline
-              placeholder="z.B. Halbmarathon am 15.6., bevorzuge Morgentraining, maximale Einheit 90 Min…"
+              placeholder="z.B. Kraft: 6-8 Übungen pro Einheit, ca. 60 Min · lieber Ganzkörper · Halbmarathon am 15.6. · Morgentraining bevorzugt"
               placeholderTextColor={C.textTertiary}
             />
 

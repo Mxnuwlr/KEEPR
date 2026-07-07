@@ -1,17 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * screens/CaloriesScreen.js — Kalorienzählung & KI-Mahlzeitenplanung
+ *
+ * Zentraler Ernährungs-Screen. Zeigt Tages-Makros (Kalorien, Protein, Carbs, Fett)
+ * und KI-generierten Mahlzeitenplan. Unterstützt:
+ *   - Foto-Analyse via Gemini (analyzeFoodPhoto)
+ *   - Mahlzeitenplan-Generierung (generateMealPlanWithGemini)
+ *   - Einzelmahlzeit generieren (generateSingleMealWithGemini)
+ *   - Schritt-für-Schritt Zubereitung (generateDetailedStepsWithGemini)
+ *   - Zutat tauschen (swapIngredientWithGemini)
+ *   - Manuelle Suche via FoodSearchScreen (inline embedded)
+ *
+ * MEAL_TYPES: ['Frühstück','Mittagessen','Abendessen','Snack']
+ * PORTIONS: [0.5 … 8] für Portionsauswahl
+ */
+
+// React/RN
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, FlatList, TouchableOpacity, Modal,
   TextInput, Alert, Image, ActivityIndicator,
   RefreshControl, StyleSheet,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+// Third-party
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Internal
 import { useStore } from '../store';
+import { useKraftStore } from '../store/kraftStore';
 import FoodSearchScreen from './FoodSearchScreen';
 import { analyzeFoodPhoto, generateMealPlanWithGemini, generateSingleMealWithGemini, generateDetailedStepsWithGemini, swapIngredientWithGemini, api } from '../api/client';
 import { useTheme } from '../theme';
+import { calculateDailyTargets, buildMealPlanContext, classifyTrainingIntensity, planDayType, getCarbLoadingStatus, getRaceContext, calcWaterGoal, getSmoothedWeight } from '../utils/coaching';
+import { analyzeTrainingStatus } from '../utils/trainingStatus';
 
 const MEAL_TYPES = ['Frühstück','Mittagessen','Abendessen','Snack'];
 const MEAL_ICONS = { 'Frühstück': 'sunrise', 'Mittagessen': 'sun', 'Abendessen': 'moon', 'Snack': 'coffee' };
@@ -30,7 +54,7 @@ function scaleIngredient(text, factor) {
   });
 }
 
-function MealDetailModal({ meal, mealKey, initialServings, onClose, onLog, onSaveServings, geminiKey, overrides, onOverridesChange }) {
+function MealDetailModal({ meal, mealKey, initialServings, onClose, onLog, onSaveServings, geminiKey, overrides, onOverridesChange, onAddToShoppingList }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const [localPortions, setLocalPortions] = useState(initialServings);
   const [stepsMode, setStepsMode] = useState('short');
@@ -99,8 +123,15 @@ function MealDetailModal({ meal, mealKey, initialServings, onClose, onLog, onSav
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={[T.label, { color: C.textSecondary }]}>{meal.type?.toUpperCase()} · {meal.prepTime}</Text>
-            <Text style={[T.h3, { color: C.text }]} numberOfLines={1}>{meal.emoji} {meal.name}</Text>
+            <Text style={[T.h3, { color: C.text }]} numberOfLines={1}>{meal.name}</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => onAddToShoppingList(meal)}
+            hitSlop={8}
+            style={{ padding: 6, marginLeft: S.sm }}
+          >
+            <Feather name="shopping-cart" size={20} color={C.textSecondary} />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { onLog(meal); onClose(); }}
             style={{ backgroundColor: C.accent, borderRadius: R.full, paddingHorizontal: S.md, paddingVertical: 8, marginLeft: S.sm }}
@@ -260,7 +291,48 @@ export default function CaloriesScreen({ navigation, tabBar }) {
     calorieLog, calorieTotals, selectedDate,
     fetchCalories, addCalorieEntry, updateCalorieEntry, deleteCalorieEntry,
     user, inventory, geminiKey, updateProfile,
+    dailyContext, weightAnalysis, externalData, returnFromBreak, trainingPlan,
   } = useStore();
+  const { sessions, fetchSessions } = useKraftStore();
+
+  // Adaptive Tagesziele
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySession = sessions?.find(s => s.started_at?.startsWith(todayStr));
+  // Trainingstyp = intensivste Belastung des Tages (Kraft-Session ODER geplante Einheit),
+  // damit Kalorien/Makros das echte Trainingsvolumen widerspiegeln.
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const rankType = { rest: 0, easy: 1, medium: 2, hard: 3, race: 4 };
+  const kraftType = classifyTrainingIntensity(todaySession);
+  const planToday = planDayType(trainingPlan, todayIdx);
+  const autoType = rankType[planToday] > rankType[kraftType] ? planToday : kraftType;
+  // Wettkampf-Kontext aus dem Wettkampf-Kalender (heute Wettkampf → Race-Tag)
+  const raceCtx = useMemo(() => getRaceContext(user, todayStr), [user, todayStr]);
+  const trainingType = raceCtx.isRaceToday ? 'race' : (dailyContext?.trainingType || autoType);
+  const trainingStatus = useMemo(() =>
+    analyzeTrainingStatus({ kraftSessions: sessions, externalData, manualOverride: returnFromBreak }),
+    [sessions, externalData, returnFromBreak]
+  );
+  // Tatsächlich an diesem Tag verbrannte Trainings-kcal (aus geloggten Aktivitäten/Einheiten)
+  const [activityCalories, setActivityCalories] = useState(0);
+
+  // Carb-Loading-Status: Wettkampf heute/in den nächsten Tagen hat Vorrang,
+  // sonst aus dem Trainingsplan (heute/morgen intensiv).
+  const carbStatus = useMemo(() => {
+    if (raceCtx.isRaceToday) {
+      return { active: true, scope: 'today', title: 'Wettkampftag', message: `Heute: ${raceCtx.nextRace?.name || 'Wettkampf'} — Glykogenspeicher voll halten, gut hydriert starten.` };
+    }
+    if (raceCtx.daysUntilNextRace !== null && raceCtx.daysUntilNextRace > 0 && raceCtx.daysUntilNextRace <= 2) {
+      return { active: true, scope: 'race', title: `Carb-Loading für ${raceCtx.nextRace?.name || 'Wettkampf'}`, message: `In ${raceCtx.daysUntilNextRace} Tag${raceCtx.daysUntilNextRace === 1 ? '' : 'en'} steht dein Wettkampf an — jetzt Kohlenhydratspeicher auffüllen und ausreichend trinken.` };
+    }
+    return getCarbLoadingStatus(trainingType, planDayType(trainingPlan, (todayIdx + 1) % 7));
+  }, [raceCtx, trainingPlan, trainingType, todayIdx]);
+
+  // Coaching nutzt das geglättete Gewicht (EWMA) statt des Tageswerts
+  const coachUser = useMemo(() => ({ ...user, weight: getSmoothedWeight(weightAnalysis, user) || user?.weight }), [user, weightAnalysis]);
+  const adaptiveTargets = useMemo(() =>
+    calculateDailyTargets(coachUser, { ...dailyContext, readiness: externalData?.oura?.readinessScore }, weightAnalysis?.weightChangePerWeek, trainingType, trainingStatus, activityCalories, carbStatus?.active),
+    [coachUser, dailyContext, externalData, weightAnalysis, trainingType, trainingStatus, activityCalories, carbStatus]
+  );
 
   const [modal, setModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -289,14 +361,34 @@ export default function CaloriesScreen({ navigation, tabBar }) {
   const [scannedProduct, setScannedProduct] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  const goal = user?.calorieGoal || 2000;
-  const pGoal = user?.proteinGoal || 150;
-  const cGoal = user?.carbsGoal || 250;
-  const fGoal = user?.fatGoal || 65;
+  // Adaptive Tagesziele (Coaching) — heute angepasst, sonst statisches Ziel
+  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const goal    = isToday ? adaptiveTargets.calories : (user?.calorieGoal || 2000);
+  const pGoal   = isToday ? adaptiveTargets.protein  : (user?.proteinGoal || 150);
+  const cGoal   = isToday ? adaptiveTargets.carbs    : (user?.carbsGoal || 250);
+  const fGoal   = isToday ? adaptiveTargets.fat      : (user?.fatGoal || 65);
   const remaining = Math.max(0, goal - calorieTotals.calories);
   const pct = Math.min(calorieTotals.calories / goal, 1);
 
   useEffect(() => { fetchCalories(selectedDate); loadWater(selectedDate); }, [selectedDate]);
+
+  // Verbrannte Trainings-kcal des Tages laden (für volumenabhängiges Kalorienziel)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const day = await api.getCalendarDay(selectedDate);
+        const done = day?.training?.completedAll?.length
+          ? day.training.completedAll
+          : (day?.training?.completed ? [day.training.completed] : []);
+        const sum = done.reduce((a, w) => a + (w.calories || 0), 0);
+        if (!cancelled) setActivityCalories(sum);
+      } catch (e) { if (!cancelled) setActivityCalories(0); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedDate]);
+
+  useEffect(() => { if (sessions.length === 0) fetchSessions(40); }, []);
 
   // Persist AI plan + overrides across app restarts
   useEffect(() => {
@@ -340,7 +432,8 @@ export default function CaloriesScreen({ navigation, tabBar }) {
     setMealOverrides({});
     try {
       if (!geminiKey) throw new Error('KI nicht verfügbar');
-      const plan = await generateMealPlanWithGemini(user, geminiKey, 1, wishes, user?.kitchenEquipment || []);
+      const coachCtx = buildMealPlanContext(dailyContext, adaptiveTargets, trainingType);
+      const plan = await generateMealPlanWithGemini(user, geminiKey, 1, wishes, user?.kitchenEquipment || [], coachCtx);
       setAiPlan(plan);
     } catch (e) { Alert.alert('Fehler', e.message); }
     setAiPlanLoading(false);
@@ -364,6 +457,43 @@ export default function CaloriesScreen({ navigation, tabBar }) {
       });
     } catch (e) { Alert.alert('Fehler', e.message); }
     setReplacingKey(null);
+  };
+
+  const addMealToShoppingList = async (meal) => {
+    const ingredients = meal.ingredients || [];
+    if (ingredients.length === 0) {
+      Alert.alert('Keine Zutaten', 'Für dieses Gericht sind keine Zutaten hinterlegt.');
+      return;
+    }
+
+    // Prüfen welche Zutaten bereits im Inventar sind
+    const inventoryNames = inventory.map(i => i.name?.toLowerCase()).filter(Boolean);
+    const missing = ingredients.filter(ing => {
+      if (!ing || typeof ing !== 'string') return false;
+      const ingLower = ing.toLowerCase();
+      // Zutatenname ohne führende Mengenangabe extrahieren
+      const ingName = ingLower.replace(/^\d+[\s,./]*[a-zA-Z]*\s*/, '').trim();
+      return !inventoryNames.some(name => ingLower.includes(name) || (ingName && name.includes(ingName)));
+    });
+
+    if (missing.length === 0) {
+      Alert.alert('Alles vorhanden!', 'Alle Zutaten sind bereits in deiner Speisekammer.');
+      return;
+    }
+
+    Alert.alert(
+      `${missing.length} Zutat${missing.length === 1 ? '' : 'en'} hinzufügen?`,
+      missing.slice(0, 6).join('\n') + (missing.length > 6 ? `\n… +${missing.length - 6} weitere` : ''),
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Zur Einkaufsliste', onPress: async () => {
+          for (const ing of missing) {
+            try { await api.addShoppingItem({ name: ing }); } catch (e) {}
+          }
+          Alert.alert('Hinzugefügt', `${missing.length} Zutat${missing.length === 1 ? '' : 'en'} zur Einkaufsliste hinzugefügt.`);
+        }},
+      ]
+    );
   };
 
   const addAIMeal = async (meal) => {
@@ -445,12 +575,15 @@ export default function CaloriesScreen({ navigation, tabBar }) {
 
   const openFoodSearch = (meal) => { setActiveMealType(meal||'Frühstück'); setFoodSearchVisible(true); };
 
-  const grouped = MEAL_TYPES.reduce((acc, m) => { acc[m] = calorieLog.filter(l => l.meal_type === m); return acc; }, {});
-  const macros = [
+  const grouped = useMemo(
+    () => MEAL_TYPES.reduce((acc, m) => { acc[m] = calorieLog.filter(l => l.meal_type === m); return acc; }, {}),
+    [calorieLog]
+  );
+  const macros = useMemo(() => [
     { label: 'Protein', value: calorieTotals.protein, goal: pGoal, color: C.success },
     { label: 'Carbs', value: calorieTotals.carbs, goal: cGoal, color: C.warning },
     { label: 'Fett', value: calorieTotals.fat, goal: fGoal, color: C.danger },
-  ];
+  ], [calorieTotals, pGoal, cGoal, fGoal, C.success, C.warning, C.danger]);
 
   // 7-day date strip (current week)
   const today = new Date().toISOString().split('T')[0];
@@ -577,6 +710,20 @@ export default function CaloriesScreen({ navigation, tabBar }) {
           {/* Log Tab */}
           {activeTab === 'log' && (
             <>
+              {isToday && carbStatus?.active && (
+                <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: '#F9731612', borderRadius: R.md, padding: S.md, marginBottom: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: '#F9731640' }}>
+                  <MaterialCommunityIcons name="pasta" size={18} color="#F97316" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[T.bodyMed, { color: '#F97316' }]}>{carbStatus.title}</Text>
+                    <Text style={[T.caption, { color: C.textSecondary, marginTop: 2, lineHeight: 17 }]}>{carbStatus.message}</Text>
+                    {isToday && (
+                      <Text style={[T.caption, { color: '#F97316', marginTop: 4, fontWeight: '700' }]}>
+                        Ziel: ~{adaptiveTargets.carbs} g Kohlenhydrate ({(adaptiveTargets.carbs / (coachUser?.weight || 75)).toFixed(1)} g/kg)
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
               {MEAL_TYPES.map(meal => (
                 <View key={meal} style={{ marginBottom: S.lg }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.sm }}>
@@ -638,10 +785,10 @@ export default function CaloriesScreen({ navigation, tabBar }) {
                     <Feather name="droplet" size={16} color="#60A5FA" />
                     <Text style={[T.bodyMed, { color: C.text }]}>Wasser</Text>
                   </View>
-                  <Text style={[T.bodyMed, { color: '#60A5FA' }]}>{Math.round(waterData.total)} / {waterData.goal} ml</Text>
+                  <Text style={[T.bodyMed, { color: '#60A5FA' }]}>{Math.round(waterData.total)} / {isToday ? calcWaterGoal(coachUser, trainingType) : waterData.goal} ml</Text>
                 </View>
                 <View style={{ height: 4, backgroundColor: C.bgTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: S.md }}>
-                  <View style={{ height: '100%', width: `${Math.min(waterData.total/waterData.goal,1)*100}%`, backgroundColor: '#60A5FA', borderRadius: 2 }} />
+                  <View style={{ height: '100%', width: `${Math.min(waterData.total/(isToday ? calcWaterGoal(coachUser, trainingType) : waterData.goal),1)*100}%`, backgroundColor: '#60A5FA', borderRadius: 2 }} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: S.sm }}>
                   {[150, 250, 330, 500].map(ml => (
@@ -743,7 +890,7 @@ export default function CaloriesScreen({ navigation, tabBar }) {
                         >
                           <View style={{ flex: 1 }}>
                             <Text style={[T.label, { color: C.textSecondary }]}>{meal.type?.toUpperCase()} · {meal.prepTime}</Text>
-                            <Text style={[T.bodyMed, { color: C.text, marginTop: 2, marginBottom: 6 }]}>{meal.emoji} {meal.name}</Text>
+                            <Text style={[T.bodyMed, { color: C.text, marginTop: 2, marginBottom: 6 }]}>{meal.name}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <View style={{ flexDirection: 'row', gap: S.md }}>
                                 <Text style={[T.caption, { color: C.tint }]}>{sCal} kcal</Text>
@@ -877,6 +1024,7 @@ export default function CaloriesScreen({ navigation, tabBar }) {
           geminiKey={geminiKey}
           overrides={mealOverrides[selectedMeal.mealKey]}
           onOverridesChange={(key, val) => setMealOverrides(prev => ({ ...prev, [key]: val }))}
+          onAddToShoppingList={addMealToShoppingList}
         />
       )}
 

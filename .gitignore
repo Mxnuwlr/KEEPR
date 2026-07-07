@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Playwright-Browserprofil (enthält Google-Session-Cookies — niemals committen)
+scripts/playwright_profile/

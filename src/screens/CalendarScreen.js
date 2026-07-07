@@ -1,13 +1,33 @@
+/**
+ * screens/CalendarScreen.js — Trainingskalender & Wettkampfplanung
+ *
+ * Monatskalender mit Trainings-Einträgen (aus dem Backend via api.getCalendar()).
+ * Zeigt Workouts, geplante Einheiten und Wettkampf-Marker pro Tag.
+ * Sporttyp-Farben und Icons über getSportIcon() / getSportColor() aus api/client.
+ *
+ * Daten werden bei Screen-Focus (useFocusEffect) neu geladen (RefreshControl + Auto).
+ */
+
+// React/RN
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Modal, RefreshControl, Alert,
 } from 'react-native';
+
+// Third-party
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Internal
 import { useStore } from '../store';
 import { api, getSportIcon, getSportColor } from '../api/client';
+import { getSportMci } from '../data/sports';
 import { useTheme } from '../theme';
+import ActivityLogModal from '../components/ActivityLogModal';
+import WeeklyReviewModal from '../components/WeeklyReviewModal';
+import WorkoutProfileChart from '../components/WorkoutProfileChart';
+import { getSessionSteps } from '../utils/workoutStructure';
 
 const DAYS_SHORT = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -193,7 +213,7 @@ function SessionPreviewModal({ visible, session, onClose, onComplete }) {
   );
 }
 
-function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCaloriePress, onTrainingPress }) {
+function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCaloriePress, onTrainingPress, onAddActivity }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const [previewSession, setPreviewSession] = useState(null);
   if (!date) return null;
@@ -220,6 +240,15 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
           </TouchableOpacity>
         </View>
 
+        {/* Aktivität manuell eintragen */}
+        <TouchableOpacity
+          onPress={() => onAddActivity?.(date)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint + '15', borderRadius: R.lg, padding: S.md, marginBottom: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '40' }}
+        >
+          <Feather name="plus-circle" size={18} color={C.tint} />
+          <Text style={[T.bodyMed, { color: C.tint }]}>Aktivität eintragen</Text>
+        </TouchableOpacity>
+
         {(workouts.length > 0 || planned.length > 0) && (
           <View style={{ marginBottom: S.lg }}>
             <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Training</Text>
@@ -228,13 +257,17 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                 {workouts.length > 1 && <Text style={[T.label, { color: C.textTertiary, marginBottom: S.xs }]}>EINHEIT {wi+1}</Text>}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md }}>
                   <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: `${getSportColor(workout.sport_type)}20`, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 20 }}>{workout.sport_type||'🏃'}</Text>
+                    <MaterialCommunityIcons name={getSportMci(workout.sport_type)} size={20} color={getSportColor(workout.sport_type)} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[T.bodyMed, { color: C.text }]}>{workout.focus||'Workout'}</Text>
                     {workout.plan_name && <Text style={[T.caption, { color: C.textSecondary }]}>{workout.plan_name}</Text>}
                   </View>
-                  {workout.rating && <Text style={{ fontSize: 14 }}>{'⭐'.repeat(workout.rating)}</Text>}
+                  {workout.rating ? (
+                    <View style={{ flexDirection: 'row', gap: 1 }}>
+                      {Array.from({ length: workout.rating }).map((_, si) => <Feather key={si} name="star" size={12} color="#E8C547" />)}
+                    </View>
+                  ) : null}
                 </View>
                 <View style={{ flexDirection: 'row', gap: S.sm }}>
                   {workout.duration_minutes && <StatPill label="Dauer" value={`${workout.duration_minutes} Min`} />}
@@ -298,9 +331,9 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
             <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Tagesform</Text>
             <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.lg }}>
-                {[['😴','Schlaf', wellness.sleep_hours ? `${wellness.sleep_hours}h` : null, null],['⭐','Schlafqualität',null,wellness.sleep_quality],['😊','Stimmung',null,wellness.mood],['⚡','Energie',null,wellness.energy],['💪','Kater',null,wellness.soreness],['❤️','Ruhe-HF',wellness.resting_hr ? `${wellness.resting_hr}bpm` : null, null]].filter(([,,v,s]) => v||s).map(([ico,label,val,scale]) => (
+                {[['moon','Schlaf', wellness.sleep_hours ? `${wellness.sleep_hours}h` : null, null],['star','Schlafqualität',null,wellness.sleep_quality],['smile','Stimmung',null,wellness.mood],['zap','Energie',null,wellness.energy],['activity','Kater',null,wellness.soreness],['heart','Ruhe-HF',wellness.resting_hr ? `${wellness.resting_hr}bpm` : null, null]].filter(([,,v,s]) => v||s).map(([ico,label,val,scale]) => (
                   <View key={label} style={{ alignItems: 'center', minWidth: 56 }}>
-                    <Text style={{ fontSize: 16, marginBottom: 2 }}>{ico}</Text>
+                    <Feather name={ico} size={15} color={C.textSecondary} style={{ marginBottom: 3 }} />
                     <Text style={[T.caption, { color: C.textTertiary, fontSize: 9, marginBottom: 3 }]}>{label}</Text>
                     {val ? <Text style={[T.caption, { color: C.textSecondary, fontWeight: '600' }]}>{val}</Text> : <WellnessDot value={scale} />}
                   </View>
@@ -337,6 +370,13 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                   <Feather name="x" size={22} color={C.textSecondary} />
                 </TouchableOpacity>
               </View>
+
+              {getSessionSteps(previewSession).length > 0 && (
+                <View style={{ marginBottom: S.lg }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Profil</Text>
+                  <WorkoutProfileChart steps={getSessionSteps(previewSession)} height={72} />
+                </View>
+              )}
 
               {exercises.length > 0 && (
                 <View style={{ marginBottom: S.lg }}>
@@ -430,6 +470,11 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
   const [monthYear, setMonthYear] = useState({ y: new Date().getFullYear(), m: new Date().getMonth() });
   const [monthData, setMonthData] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [activityVisible, setActivityVisible] = useState(false);
+  const [activityDate, setActivityDate] = useState(null);
+  const [reviewVisible, setReviewVisible] = useState(false);
+
+  const openActivity = (d) => { setActivityDate(d || today); setDetailVisible(false); setActivityVisible(true); };
 
   const today = formatDate(new Date());
   const weekDates = Array.from({length:7}, (_,i) => formatDate(addDays(weekStart,i)));
@@ -481,8 +526,22 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
         onDeleted={() => { setDetailVisible(false); loadWeek(); }}
         onCaloriePress={() => { setDetailVisible(false); onSwitchToKalorien?.(); }}
         onTrainingPress={() => navigation.navigate('Training')}
+        onAddActivity={openActivity}
       />
       <KIReviewModal visible={kiVisible} date={kiDate} workout={kiWorkout} onClose={() => setKiVisible(false)} />
+      <ActivityLogModal
+        visible={activityVisible}
+        date={activityDate}
+        onClose={() => setActivityVisible(false)}
+        onSaved={() => { setActivityVisible(false); loadWeek(); if (view === 'month') loadMonth(); loadStreak(); }}
+      />
+      <WeeklyReviewModal
+        visible={reviewVisible}
+        weekData={weekData}
+        weekDates={weekDates}
+        weekLabel={weekLabel}
+        onClose={() => setReviewVisible(false)}
+      />
 
       <ScrollView
         style={{ flex: 1, backgroundColor: C.bg }}
@@ -490,8 +549,24 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.textSecondary} />}
       >
-        {/* View toggle */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingVertical: S.sm }}>
+        {/* View toggle + Schnell-Eintrag + Review */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: S.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+            <TouchableOpacity
+              onPress={() => openActivity(today)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 7 }}
+            >
+              <Feather name="plus" size={15} color={C.accentText} />
+              <Text style={[T.label, { color: C.accentText, fontWeight: '700' }]}>Aktivität</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setReviewVisible(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
+            >
+              <Feather name="bar-chart-2" size={15} color={C.textSecondary} />
+              <Text style={[T.label, { color: C.textSecondary, fontWeight: '700' }]}>Review</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
             {[['week','Woche'],['month','Monat']].map(([v,l]) => (
               <TouchableOpacity key={v} style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: R.sm, backgroundColor: view===v ? C.accent : 'transparent' }} onPress={() => setView(v)}>
