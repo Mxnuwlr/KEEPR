@@ -25,6 +25,7 @@ import { api, syncIntervalsIcu, verifyIntervalsCredentials, syncOura, verifyOura
 import { getSecureItem, setSecureItem, removeSecureItem } from '../utils/secureStorage';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
+import { ScreenHeader } from '../components/ui';
 
 // ── App-Logos (SVG) ───────────────────────────────────────────────────────────
 
@@ -340,7 +341,7 @@ function OuraSummary({ data }) {
 
 // ── Haupt-Screen ──────────────────────────────────────────────────────────────
 
-export default function ConnectedAppsScreen() {
+export default function ConnectedAppsScreen({ navigation }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
 
   // Backend-verbundene Apps (Strava etc.)
@@ -564,14 +565,14 @@ export default function ConnectedAppsScreen() {
   const unavailableApps = APPS.filter(a => !a.available);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScreenHeader title="Verbundene Apps" onBack={() => navigation.goBack()} />
       <ScrollView
         style={{ flex: 1, backgroundColor: C.bg }}
-        contentContainerStyle={{ paddingHorizontal: S.md, paddingTop: 60, paddingBottom: 130 }}
+        contentContainerStyle={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 130 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.tint} />}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[T.h1, { color: C.text, marginBottom: 6 }]}>Apps verbinden</Text>
         <Text style={[T.body, { color: C.textSecondary, marginBottom: S.lg }]}>
           Synchronisiere deine Trainingsdaten mit externen Apps.
         </Text>
@@ -651,7 +652,7 @@ export default function ConnectedAppsScreen() {
                   )}
                   {!connected && !isExpanded && (
                     <TouchableOpacity
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '60' }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.borderStrong }}
                       onPress={() => {
                         if (app.key === 'strava') handleConnectStrava();
                         else openForm(app.key);
@@ -659,10 +660,10 @@ export default function ConnectedAppsScreen() {
                       disabled={isConnecting}
                     >
                       {isConnecting
-                        ? <ActivityIndicator size="small" color={C.tint} />
-                        : <Feather name="link" size={13} color={C.tint} />
+                        ? <ActivityIndicator size="small" color={C.text} />
+                        : <Feather name="link" size={13} color={C.text} />
                       }
-                      <Text style={[T.label, { color: C.tint }]}>Verbinden</Text>
+                      <Text style={[T.label, { color: C.text }]}>Verbinden</Text>
                     </TouchableOpacity>
                   )}
                 </View>

@@ -22,6 +22,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 // Internal
 import { api } from '../api/client';
 import { useTheme } from '../theme';
+import { ScreenHeader } from '../components/ui';
 
 const SPORT_TYPES = [
   { key: 'run',       label: 'Laufen',    mci: 'run', color: '#4CAF50' },
@@ -106,11 +107,11 @@ function GoalFormModal({ visible, goal, onClose, onSave }) {
           {GOAL_TYPES.map(g => (
             <TouchableOpacity
               key={g.key}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: goalType === g.key ? C.tint : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: goalType === g.key ? C.tint : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: goalType === g.key ? C.accent : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: goalType === g.key ? C.accent : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
               onPress={() => setGoalType(g.key)}
             >
-              <MaterialCommunityIcons name={g.mci} size={14} color={goalType === g.key ? C.tintText : C.textSecondary} />
-              <Text style={[T.label, { color: goalType === g.key ? C.tintText : C.textSecondary }]}>{g.label}</Text>
+              <MaterialCommunityIcons name={g.mci} size={14} color={goalType === g.key ? C.accentText : C.textSecondary} />
+              <Text style={[T.label, { color: goalType === g.key ? C.accentText : C.textSecondary }]}>{g.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -174,10 +175,10 @@ function GoalFormModal({ visible, goal, onClose, onSave }) {
               {DISTANCES.map(d => (
                 <TouchableOpacity
                   key={d}
-                  style={{ backgroundColor: distance === d ? C.tint : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: distance === d ? C.tint : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
+                  style={{ backgroundColor: distance === d ? C.accent : C.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: distance === d ? C.accent : C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 6 }}
                   onPress={() => setDistance(d)}
                 >
-                  <Text style={[T.label, { color: distance === d ? C.tintText : C.textSecondary }]}>{d}</Text>
+                  <Text style={[T.label, { color: distance === d ? C.accentText : C.textSecondary }]}>{d}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -276,7 +277,7 @@ function GoalCard({ goal, onEdit, onDelete }) {
   );
 }
 
-export default function GoalsScreen() {
+export default function GoalsScreen({ navigation }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -342,21 +343,12 @@ export default function GoalsScreen() {
         onClose={() => { setModalVisible(false); setEditGoal(null); }}
         onSave={handleSave}
       />
+      <ScreenHeader title="Ziele & Wettkämpfe" onBack={() => navigation.goBack()} rightIcon="plus" onRight={openNew} />
       <ScrollView
         style={{ flex: 1, backgroundColor: C.bg }}
-        contentContainerStyle={{ paddingHorizontal: S.md, paddingTop: 60, paddingBottom: 130 }}
+        contentContainerStyle={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 130 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.tint} />}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.lg }}>
-          <Text style={[T.h1, { color: C.text }]}>Ziele</Text>
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 8 }}
-            onPress={openNew}
-          >
-            <Feather name="plus" size={18} color={C.accentText} />
-            <Text style={[T.label, { color: C.accentText }]}>Neu</Text>
-          </TouchableOpacity>
-        </View>
 
         {upcoming && (
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.xl, padding: 18, marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '40' }}>

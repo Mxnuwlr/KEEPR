@@ -23,6 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 // Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
+import { ScreenHeader } from '../components/ui';
 import { api, getBaseUrl } from '../api/client';
 
 function MemberAvatar({ member, size = 44 }) {
@@ -158,23 +159,9 @@ export default function HouseholdScreen({ navigation }) {
   const hasChecked = checked.length > 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgSecondary }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.md, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={C.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[T.h3, { color: C.text }]}>Haushalt</Text>
-          {user?.householdName && (
-            <Text style={[T.caption, { color: C.textSecondary }]}>{user.householdName}</Text>
-          )}
-        </View>
-        <TouchableOpacity onPress={shareInvite} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.accent + '18', paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.full }}>
-          <Feather name="user-plus" size={14} color={C.accent} />
-          <Text style={[T.label, { color: C.accent }]}>Einladen</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* Header (App-Standard) */}
+      <ScreenHeader title={user?.householdName || 'Haushalt'} onBack={() => navigation.goBack()} rightIcon="user-plus" onRight={shareInvite} />
 
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

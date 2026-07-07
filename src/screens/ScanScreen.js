@@ -36,13 +36,13 @@ function ModeIcon({ name }) {
   );
 }
 
-export default function ScanScreen({ navigation }) {
+export default function ScanScreen({ navigation, route }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const { geminiKey, bulkAddItems } = useStore();
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState(null);
   const [products, setProducts] = useState(null);
-  const [tab, setTab] = useState('receipt');
+  const [tab, setTab] = useState(route?.params?.tab || 'receipt');
   const [addedIndices, setAddedIndices] = useState(new Set());
 
   const runAnalysis = async (b64, mimeType, key) => {
@@ -125,28 +125,23 @@ export default function ScanScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Scanner" onBack={() => navigation.goBack()} />
 
-      {/* Modus-Wahl als Chips (App-Standard: accent-Pille aktiv) */}
-      <View style={{ flexDirection: 'row', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.md }}>
+      {/* Modus-Wahl als Untertab-Leiste (wie Training/Tracken) */}
+      <View style={{ flexDirection: 'row', backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
         {TABS.map(([t, label]) => {
           const active = tab === t;
           return (
             <TouchableOpacity
               key={t}
               onPress={() => { setTab(t); setPreview(null); setProducts(null); }}
-              style={{
-                paddingVertical: 6, paddingHorizontal: 14, borderRadius: R.full,
-                backgroundColor: active ? C.accent : 'transparent',
-                borderWidth: StyleSheet.hairlineWidth,
-                borderColor: active ? C.accent : C.border,
-              }}
+              style={{ flex: 1, paddingVertical: 13, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: active ? C.accent : 'transparent' }}
             >
-              <Text style={[T.label, { color: active ? C.accentText : C.textSecondary }]}>{label}</Text>
+              <Text style={{ color: active ? C.text : C.textTertiary, fontSize: 13, fontWeight: '600' }}>{label}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Kassenzettel */}
         {tab === 'receipt' && <>
           {!preview && !scanning && !products && (

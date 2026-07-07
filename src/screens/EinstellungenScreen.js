@@ -171,13 +171,8 @@ export default function EinstellungenScreen({ navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgSecondary }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.md, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={C.text} />
-        </TouchableOpacity>
-        <Text style={[T.h3, { color: C.text }]}>Einstellungen</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader title="Einstellungen" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
 

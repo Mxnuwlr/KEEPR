@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setSecureItem } from '../utils/secureStorage';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
+import { ScreenHeader } from '../components/ui';
 import { api } from '../api/client';
 
 function Field({ label, value, onSave, placeholder, autoCapitalize }) {
@@ -149,14 +150,9 @@ export default function KontoScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgSecondary }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.md, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={C.text} />
-        </TouchableOpacity>
-        <Text style={[T.h3, { color: C.text }]}>Konto bearbeiten</Text>
-      </View>
+      <ScreenHeader title="Konto bearbeiten" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
 
@@ -174,14 +170,14 @@ export default function KontoScreen({ navigation }) {
           {/* Eigener Code */}
           <View style={{ padding: S.lg, alignItems: 'center' }}>
             <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }]}>Dein Einladungscode</Text>
-            <Text style={{ color: C.tint, fontSize: 36, fontWeight: '800', letterSpacing: 10, marginBottom: 6 }}>{user?.inviteCode || '——'}</Text>
+            <Text style={{ color: C.text, fontSize: 36, fontWeight: '800', letterSpacing: 10, marginBottom: 6 }}>{user?.inviteCode || '——'}</Text>
             <Text style={[T.caption, { color: C.textTertiary, textAlign: 'center', marginBottom: S.md }]}>Teile diesen Code, um andere in deinen Haushalt einzuladen</Text>
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.tint + '15', paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.full, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '40' }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.full }}
               onPress={shareInviteCode}
             >
-              <Feather name="share-2" size={15} color={C.tint} />
-              <Text style={[T.label, { color: C.tint }]}>Code teilen</Text>
+              <Feather name="share-2" size={15} color={C.accentText} />
+              <Text style={[T.label, { color: C.accentText }]}>Code teilen</Text>
             </TouchableOpacity>
           </View>
 
@@ -222,7 +218,7 @@ export default function KontoScreen({ navigation }) {
                 onPress={handleJoin}
                 disabled={joining}
                 style={{
-                  backgroundColor: C.tint,
+                  backgroundColor: C.accent,
                   borderRadius: R.md,
                   paddingHorizontal: S.md,
                   justifyContent: 'center',
@@ -231,8 +227,8 @@ export default function KontoScreen({ navigation }) {
                 }}
               >
                 {joining
-                  ? <Text style={{ color: C.bg, fontWeight: '700' }}>…</Text>
-                  : <Feather name="log-in" size={20} color={C.bg} />}
+                  ? <Text style={{ color: C.accentText, fontWeight: '700' }}>…</Text>
+                  : <Feather name="log-in" size={20} color={C.accentText} />}
               </TouchableOpacity>
             </View>
           </View>
@@ -255,13 +251,13 @@ export default function KontoScreen({ navigation }) {
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingVertical: 8, paddingHorizontal: 12,
                     borderRadius: R.md,
-                    backgroundColor: active ? C.tint + '18' : C.bgSecondary,
+                    backgroundColor: active ? C.accent : C.bgSecondary,
                     borderWidth: StyleSheet.hairlineWidth,
-                    borderColor: active ? C.tint : C.border,
+                    borderColor: active ? C.accent : C.border,
                   }}
                 >
-                  <Feather name={icon} size={13} color={active ? C.tint : C.textTertiary} />
-                  <Text style={[T.label, { color: active ? C.tint : C.textSecondary }]}>{id}</Text>
+                  <Feather name={icon} size={13} color={active ? C.accentText : C.textTertiary} />
+                  <Text style={[T.label, { color: active ? C.accentText : C.textSecondary }]}>{id}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -274,13 +270,13 @@ export default function KontoScreen({ navigation }) {
                   flexDirection: 'row', alignItems: 'center', gap: 5,
                   paddingVertical: 8, paddingLeft: 12, paddingRight: 8,
                   borderRadius: R.md,
-                  backgroundColor: C.tint + '18',
+                  backgroundColor: C.accent,
                   borderWidth: StyleSheet.hairlineWidth,
-                  borderColor: C.tint,
+                  borderColor: C.accent,
                 }}
               >
-                <Text style={[T.label, { color: C.tint }]}>{id}</Text>
-                <Feather name="x" size={12} color={C.tint} />
+                <Text style={[T.label, { color: C.accentText }]}>{id}</Text>
+                <Feather name="x" size={12} color={C.accentText} />
               </TouchableOpacity>
             ))}
           </View>
@@ -306,8 +302,8 @@ export default function KontoScreen({ navigation }) {
               onPress={addCustomEquipment}
               style={{
                 width: 40, borderRadius: R.md,
-                backgroundColor: customEquip.trim() ? C.tint : C.bgSecondary,
-                borderWidth: StyleSheet.hairlineWidth, borderColor: customEquip.trim() ? C.tint : C.border,
+                backgroundColor: customEquip.trim() ? C.accent : C.bgSecondary,
+                borderWidth: StyleSheet.hairlineWidth, borderColor: customEquip.trim() ? C.accent : C.border,
                 alignItems: 'center', justifyContent: 'center',
               }}
             >

@@ -262,10 +262,12 @@ export default function InventoryScreen({ navigation, tabBar }) {
       {/* FAB */}
       <TouchableOpacity
         onPress={() => ActionSheetIOS.showActionSheetWithOptions(
-          { options: ['Abbrechen', 'Manuell hinzufügen', 'Kassenzettel scannen'], cancelButtonIndex: 0 },
+          { options: ['Abbrechen', 'Manuell hinzufügen', 'Kassenzettel scannen', 'Kühlschrank scannen', 'Barcode scannen'], cancelButtonIndex: 0 },
           (i) => {
             if (i === 1) navigation.navigate('InventoryAdd');
-            if (i === 2) navigation.navigate('ScanModal');
+            if (i === 2) navigation.navigate('ScanModal', { tab: 'receipt' });
+            if (i === 3) navigation.navigate('FridgeScan');
+            if (i === 4) navigation.navigate('BarcodeScanner');
           }
         )}
         activeOpacity={0.85}

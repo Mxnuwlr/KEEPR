@@ -17,6 +17,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 // Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
+import { ScreenHeader } from '../components/ui';
 import { api } from '../api/client';
 import { calcCalorieGoalFromProfile, getSmoothedWeight } from '../utils/coaching';
 import LineChart from '../components/LineChart';
@@ -112,13 +113,8 @@ export default function KoerperScreen({ navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgSecondary }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.md, backgroundColor: C.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
-          <Feather name="arrow-left" size={22} color={C.text} />
-        </TouchableOpacity>
-        <Text style={[T.h3, { color: C.text }]}>Körper & Gesundheit</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader title="Körper & Gesundheit" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
 
@@ -319,8 +315,8 @@ export default function KoerperScreen({ navigation }) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 {[['omnivore', 'Alles'], ['vegetarian', 'Vegetarisch'], ['vegan', 'Vegan'], ['keto', 'Keto'], ['paleo', 'Paleo']].map(([id, l]) => (
-                  <TouchableOpacity key={id} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.sm, backgroundColor: user?.dietType === id ? C.tint : C.bgTertiary, borderWidth: StyleSheet.hairlineWidth, borderColor: user?.dietType === id ? C.tint : C.border }} onPress={() => save({ dietType: id })}>
-                    <Text style={[T.label, { color: user?.dietType === id ? C.tintText : C.textSecondary }]}>{l}</Text>
+                  <TouchableOpacity key={id} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.sm, backgroundColor: user?.dietType === id ? C.accent : C.bgTertiary, borderWidth: StyleSheet.hairlineWidth, borderColor: user?.dietType === id ? C.accent : C.border }} onPress={() => save({ dietType: id })}>
+                    <Text style={[T.label, { color: user?.dietType === id ? C.accentText : C.textSecondary }]}>{l}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
