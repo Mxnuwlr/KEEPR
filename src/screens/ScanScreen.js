@@ -1,12 +1,14 @@
 /**
- * screens/ScanScreen.js — Kassenbon-Scanner & Inventar-Bulk-Import
+ * screens/ScanScreen.js — Scanner: Kassenzettel, Kühlschrank & Barcode
  *
- * Zwei Modi:
+ * Drei Modi:
  *   - Kassenbon-Foto: analyzeReceiptWithGemini() → Produkt-Liste → bulkAddItems()
+ *   - Kühlschrank: Einstieg in den geführten FridgeScan (eigener Screen)
  *   - Barcode-Scan: lookupBarcode() → InventoryAdd
  *
  * Foto-Auswahl via ImagePicker (Kamera oder Galerie).
  * Base64-Kodierung via expo-file-system für Gemini-Upload.
+ * Layout nutzt das UI-Kit (ScreenHeader, Surface, PrimaryButton, GhostButton).
  */
 
 // React/RN
@@ -22,6 +24,17 @@ import { Feather } from '@expo/vector-icons';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { analyzeReceiptWithGemini, lookupBarcode } from '../api/client';
+import { ScreenHeader, Surface, PrimaryButton, GhostButton } from '../components/ui';
+
+/** Großes Icon-Feld im MenuRow-Stil (bgSecondary-Quadrat, dezentes Icon) */
+function ModeIcon({ name }) {
+  const { colors: C, radius: R, spacing: S } = useTheme();
+  return (
+    <View style={{ width: 56, height: 56, borderRadius: R.md, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: S.md }}>
+      <Feather name={name} size={26} color={C.textSecondary} />
+    </View>
+  );
+}
 
 export default function ScanScreen({ navigation }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
@@ -106,73 +119,66 @@ export default function ScanScreen({ navigation }) {
 
   const openBarcodeScanner = () => navigation.navigate('BarcodeScanner');
 
+  const TABS = [['receipt', 'Kassenzettel'], ['fridge', 'Kühlschrank'], ['barcode', 'Barcode']];
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={{ paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.md }}>
-        <Text style={[T.h1, { color: C.text }]}>Scanner</Text>
-      </View>
+      <ScreenHeader title="Scanner" onBack={() => navigation.goBack()} />
 
-      {/* Tabs */}
-      <View style={{ flexDirection: 'row', marginHorizontal: S.md, marginBottom: S.lg, backgroundColor: C.surface, borderRadius: R.md, padding: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-        {[['receipt', 'Kassenzettel', 'file-text'], ['fridge', 'Kühlschrank', 'camera'], ['barcode', 'Barcode', 'maximize']].map(([t, label, icon]) => (
-          <TouchableOpacity
-            key={t}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: R.sm, backgroundColor: tab === t ? C.tint : 'transparent' }}
-            onPress={() => { setTab(t); setPreview(null); setProducts(null); }}
-          >
-            <Feather name={icon} size={15} color={tab === t ? C.tintText : C.textSecondary} />
-            <Text style={[T.label, { color: tab === t ? C.tintText : C.textSecondary }]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* Modus-Wahl als Chips (App-Standard: accent-Pille aktiv) */}
+      <View style={{ flexDirection: 'row', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.md }}>
+        {TABS.map(([t, label]) => {
+          const active = tab === t;
+          return (
+            <TouchableOpacity
+              key={t}
+              onPress={() => { setTab(t); setPreview(null); setProducts(null); }}
+              style={{
+                paddingVertical: 6, paddingHorizontal: 14, borderRadius: R.full,
+                backgroundColor: active ? C.accent : 'transparent',
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: active ? C.accent : C.border,
+              }}
+            >
+              <Text style={[T.label, { color: active ? C.accentText : C.textSecondary }]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Kassenzettel */}
         {tab === 'receipt' && <>
           {!preview && !scanning && !products && (
-            <View style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: 28, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}>
-              <View style={{ width: 88, height: 88, borderRadius: R.xl, backgroundColor: C.tint + '14', alignItems: 'center', justifyContent: 'center', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}>
-                <Feather name="file-text" size={40} color={C.tint} />
-              </View>
-              <Text style={[T.h3, { color: C.text, marginBottom: S.sm, textAlign: 'center' }]}>Kassenzettel scannen</Text>
+            <Surface style={{ alignItems: 'center', padding: S.lg }}>
+              <ModeIcon name="file-text" />
+              <Text style={[T.h3, { color: C.text, marginBottom: 6, textAlign: 'center' }]}>Kassenzettel scannen</Text>
               <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', lineHeight: 22 }]}>
-                KI erkennt alle Produkte und schätzt das MHD automatisch. Getränke werden herausgefiltert.
+                Die KI erkennt alle Produkte und schätzt das Haltbarkeitsdatum. Getränke werden herausgefiltert.
               </Text>
-              <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14 }}
-                  onPress={() => pickImage(true)}
-                >
-                  <Feather name="camera" size={18} color={C.tintText} />
-                  <Text style={[T.bodyMed, { color: C.tintText }]}>Kamera</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                  onPress={() => pickImage(false)}
-                >
-                  <Feather name="image" size={18} color={C.text} />
-                  <Text style={[T.bodyMed, { color: C.text }]}>Galerie</Text>
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg, alignSelf: 'stretch' }}>
+                <PrimaryButton label="Kamera" icon="camera" onPress={() => pickImage(true)} style={{ flex: 1 }} />
+                <GhostButton label="Galerie" icon="image" onPress={() => pickImage(false)} style={{ flex: 1 }} />
               </View>
-            </View>
+            </Surface>
           )}
 
           {preview && (
-            <View style={{ backgroundColor: C.surface, borderRadius: R.lg, overflow: 'hidden', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+            <Surface style={{ padding: 0, overflow: 'hidden' }}>
               <Image source={{ uri: preview }} style={{ width: '100%', height: 200, resizeMode: 'cover' }} />
               {scanning && (
                 <View style={{ padding: S.lg, alignItems: 'center', gap: 10 }}>
-                  <ActivityIndicator color={C.tint} size="large" />
+                  <ActivityIndicator color={C.text} size="large" />
                   <Text style={[T.bodyMed, { color: C.text }]}>KI analysiert…</Text>
                 </View>
               )}
-            </View>
+            </Surface>
           )}
 
           {products && (
             <View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <Feather name="check-circle" size={22} color={C.success} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: S.md, marginBottom: 6 }}>
+                <Feather name="check-circle" size={20} color={C.success} />
                 <Text style={[T.h3, { color: C.text }]}>{products.length} Produkte erkannt</Text>
               </View>
               {products.some(p => p.unsicher) && (
@@ -224,25 +230,21 @@ export default function ScanScreen({ navigation }) {
                 </View>
               ))}
               {products.filter((_, i) => !addedIndices.has(i)).length > 0 && (
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 14, marginTop: S.md }}
+                <PrimaryButton
+                  label={addedIndices.size > 0
+                    ? `${products.filter((_, i) => !addedIndices.has(i)).length} verbleibende ins Inventar`
+                    : 'Alle ins Inventar'}
+                  icon="plus-circle"
                   onPress={addAll}
-                >
-                  <Feather name="plus-circle" size={18} color={C.tintText} />
-                  <Text style={[T.bodyMed, { color: C.tintText }]}>
-                    {addedIndices.size > 0
-                      ? `${products.filter((_, i) => !addedIndices.has(i)).length} verbleibende ins Inventar`
-                      : 'Alle ins Inventar'}
-                  </Text>
-                </TouchableOpacity>
+                  style={{ marginTop: S.md }}
+                />
               )}
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 14, marginTop: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
+              <GhostButton
+                label="Neuer Scan"
+                icon="refresh-cw"
                 onPress={() => { setPreview(null); setProducts(null); setAddedIndices(new Set()); }}
-              >
-                <Feather name="refresh-cw" size={16} color={C.text} />
-                <Text style={[T.bodyMed, { color: C.text }]}>Neuer Scan</Text>
-              </TouchableOpacity>
+                style={{ marginTop: S.sm }}
+              />
             </View>
           )}
         </>}
@@ -250,24 +252,15 @@ export default function ScanScreen({ navigation }) {
         {/* Kühlschrank */}
         {tab === 'fridge' && (
           <View>
-            <TouchableOpacity
-              style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: 28, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}
-              onPress={() => navigation.navigate('FridgeScan')}
-              activeOpacity={0.8}
-            >
-              <View style={{ width: 88, height: 88, borderRadius: R.xl, backgroundColor: C.tint + '14', alignItems: 'center', justifyContent: 'center', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}>
-                <Feather name="camera" size={40} color={C.tint} />
-              </View>
-              <Text style={[T.h3, { color: C.text, marginBottom: S.sm, textAlign: 'center' }]}>Kühlschrank scannen</Text>
+            <Surface style={{ alignItems: 'center', padding: S.lg }}>
+              <ModeIcon name="camera" />
+              <Text style={[T.h3, { color: C.text, marginBottom: 6, textAlign: 'center' }]}>Kühlschrank scannen</Text>
               <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', lineHeight: 22 }]}>
                 Foto vom offenen Kühlschrank oder Vorratsschrank machen — die KI erkennt alle Lebensmittel und du gehst sie Schritt für Schritt durch.
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14, marginTop: S.lg }}>
-                <Feather name="camera" size={18} color={C.tintText} />
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Scan starten</Text>
-              </View>
-            </TouchableOpacity>
-            <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <PrimaryButton label="Scan starten" icon="camera" onPress={() => navigation.navigate('FridgeScan')} style={{ marginTop: S.lg, alignSelf: 'stretch' }} />
+            </Surface>
+            <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginTop: S.md }}>
               <Feather name="info" size={15} color={C.textSecondary} />
               <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 18 }]}>Jedes erkannte Produkt wird auf dem Foto markiert und herangezoomt — Name, Menge und MHD kannst du vor dem Übernehmen anpassen.</Text>
             </View>
@@ -277,22 +270,13 @@ export default function ScanScreen({ navigation }) {
         {/* Barcode */}
         {tab === 'barcode' && (
           <View>
-            <TouchableOpacity
-              style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: 28, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}
-              onPress={openBarcodeScanner}
-              activeOpacity={0.8}
-            >
-              <View style={{ width: 88, height: 88, borderRadius: R.xl, backgroundColor: C.tint + '14', alignItems: 'center', justifyContent: 'center', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}>
-                <Feather name="maximize" size={40} color={C.tint} />
-              </View>
-              <Text style={[T.h3, { color: C.text, marginBottom: S.sm, textAlign: 'center' }]}>Barcode scannen</Text>
+            <Surface style={{ alignItems: 'center', padding: S.lg }}>
+              <ModeIcon name="maximize" />
+              <Text style={[T.h3, { color: C.text, marginBottom: 6, textAlign: 'center' }]}>Barcode scannen</Text>
               <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', lineHeight: 22 }]}>Kamera öffnen und Barcode einscannen. Nährwerte werden automatisch aus der Datenbank geladen.</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14, marginTop: S.lg }}>
-                <Feather name="camera" size={18} color={C.tintText} />
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Kamera öffnen</Text>
-              </View>
-            </TouchableOpacity>
-            <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <PrimaryButton label="Kamera öffnen" icon="camera" onPress={openBarcodeScanner} style={{ marginTop: S.lg, alignSelf: 'stretch' }} />
+            </Surface>
+            <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginTop: S.md }}>
               <Feather name="info" size={15} color={C.textSecondary} />
               <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 18 }]}>Datenbank: Open Food Facts · 3+ Millionen Produkte · Bei unbekannten Produkten fragt die KI nach</Text>
             </View>

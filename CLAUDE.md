@@ -308,6 +308,25 @@ Zoom-Mechanik wie der Kühlschrank-Scan, aber als Früher/Aktuell-Vergleich nebe
   Brust/Trizeps), alle Boxen gültig + visuell plausibel auf beiden Bildern, Trend + Befunde
   sinnvoll, Account-Cleanup 200.
 
+## UI-Vereinheitlichung Scanner + Profil (2026-07-07) ERLEDIGT
+Scanner-Screens + Profil-Tab ans UI-Kit (`components/ui.js`) angeglichen — Nutzer-Feedback:
+„passt nicht zum Rest der App".
+- **Regel für neue Screens:** IMMER `ScreenHeader` (statt eigenem paddingTop-60-Header),
+  `Surface`, `PrimaryButton` (accent/schwarz) + `GhostButton` verwenden. C.tint (gelb) NUR
+  als kleiner Akzent (Badges, Marker-Boxen auf Fotos) — nie für große Flächen/Buttons.
+- **ScanScreen:** ScreenHeader + Modus-Chips (accent-Pille wie InventoryScreen-Filter statt
+  gelbem Segmented-Control), Hero-Karten als Surface mit 56px-Icon-Quadrat (bgSecondary),
+  PrimaryButton/GhostButton. **FridgeScanScreen + ProgressCompareScreen:** ScreenHeader mit
+  Zähler als rightLabel, alle Buttons aufs Kit umgestellt; gelbe Box-Marker auf Fotos bleiben.
+  ui.js GhostButton rendert Label nur wenn nicht leer (Icon-only-Buttons).
+- **ProfilScreen** neu geschrieben: bg = C.bg (vorher bgSecondary — wich vom Rest ab),
+  insets-basiertes Padding, ui.js MenuRow/SectionLabel/Surface statt Eigenbau-Duplikate,
+  toter Sparkline-Code raus, „Über keepr"-Fake-Row raus (Version als Footer-Text).
+  Struktur: Hero (neutraler Avatar, Ziel-Badge in tint) → Quick Stats →
+  **Fortschrittsfotos-Karte** (prominent: neuestes Foto je Pose als Thumbnail-Reihe,
+  „Letztes Check-in vor X", Sub-Row „Körper-Vergleich ansehen" wenn regionen vorhanden)
+  → Mein Profil / Verbindungen / App (Abmelden als danger-Row in App-Sektion).
+
 ## Emoji-freie UI (2026-07-01)
 Alle pictographischen Emojis aus der UI entfernt → durch Feather / MaterialCommunityIcons
 ersetzt (professioneller Look). Shared Helper `muscleIcon(group)` in `data/exercises.js`

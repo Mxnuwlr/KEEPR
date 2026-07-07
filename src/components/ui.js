@@ -148,7 +148,7 @@ export function GhostButton({ label, onPress, icon, style, danger }) {
       ]}
     >
       {icon && <Feather name={icon} size={18} color={color} />}
-      <Text style={[T.bodyMed, { color, fontWeight: '500' }]}>{label}</Text>
+      {label ? <Text style={[T.bodyMed, { color, fontWeight: '500' }]}>{label}</Text> : null}
     </TouchableOpacity>
   );
 }

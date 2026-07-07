@@ -23,6 +23,7 @@ import { Feather } from '@expo/vector-icons';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import RegionZoomImage from '../components/RegionZoomImage';
+import { ScreenHeader, PrimaryButton, GhostButton } from '../components/ui';
 
 const POSE_DE = {
   front_relaxed: 'Vorne entspannt',
@@ -117,12 +118,7 @@ export default function ProgressCompareScreen({ navigation }) {
   if (!regions.length) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.sm, gap: S.sm }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-            <Feather name="x" size={18} color={C.text} />
-          </TouchableOpacity>
-          <Text style={[T.h3, { color: C.text }]}>Körper-Vergleich</Text>
-        </View>
+        <ScreenHeader title="Körper-Vergleich" onBack={() => navigation.goBack()} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
           <Feather name="search" size={40} color={C.textTertiary} />
           <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', marginTop: S.md, lineHeight: 22 }]}>
@@ -135,17 +131,15 @@ export default function ProgressCompareScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.sm, gap: S.sm }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <Feather name="x" size={18} color={C.text} />
-        </TouchableOpacity>
-        <Text style={[T.h3, { color: C.text, flex: 1 }]}>Körper-Vergleich</Text>
-        {current && <Text style={[T.label, { color: C.textSecondary }]}>{index + 1} / {regions.length}</Text>}
-      </View>
+      {/* Header (App-Standard) */}
+      <ScreenHeader
+        title="Körper-Vergleich"
+        onBack={() => navigation.goBack()}
+        rightLabel={current ? `${index + 1}/${regions.length}` : undefined}
+      />
 
       {/* Bilder: nebeneinander (Vergleich) oder einzeln (erster Check-in) */}
-      <View style={{ flex: 1, flexDirection: 'row', marginHorizontal: S.md, gap: 8 }}>
+      <View style={{ flex: 1, flexDirection: 'row', marginHorizontal: S.md, marginTop: S.sm, gap: 8 }}>
         {compareMode && (
           <View style={{ flex: 1 }}>
             <Text style={[T.label, { color: C.textTertiary, marginBottom: 4, textAlign: 'center' }]}>{imgLabel('old')}</Text>
@@ -178,13 +172,7 @@ export default function ProgressCompareScreen({ navigation }) {
           <Text style={[T.caption, { color: C.textSecondary, marginBottom: S.sm }]} numberOfLines={2}>
             {regions.map((r, i) => `${i + 1} ${r.name}`).join(' · ')}
           </Text>
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 15 }}
-            onPress={() => setIndex(0)}
-          >
-            <Feather name="play" size={17} color={C.tintText} />
-            <Text style={[T.bodyMed, { color: C.tintText }]}>Regionen durchgehen</Text>
-          </TouchableOpacity>
+          <PrimaryButton label="Regionen durchgehen" icon="play" onPress={() => setIndex(0)} />
         </View>
       )}
 
@@ -204,19 +192,12 @@ export default function ProgressCompareScreen({ navigation }) {
               <Text style={[T.body, { color: C.textSecondary, lineHeight: 21, marginTop: 8 }]}>{current.befund}</Text>
             ) : null}
             <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md }}>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                onPress={() => setIndex(index - 1)}
-              >
-                <Feather name="chevron-left" size={18} color={C.text} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.tint, borderRadius: R.md, padding: 13 }}
+              <GhostButton label="" icon="chevron-left" onPress={() => setIndex(index - 1)} style={{ paddingHorizontal: 16 }} />
+              <PrimaryButton
+                label={index + 1 < regions.length ? 'Weiter' : 'Fazit'}
                 onPress={() => setIndex(index + 1)}
-              >
-                <Text style={[T.bodyMed, { color: C.tintText }]}>{index + 1 < regions.length ? 'Weiter' : 'Fazit'}</Text>
-                <Feather name="chevron-right" size={18} color={C.tintText} />
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </View>
@@ -244,19 +225,8 @@ export default function ProgressCompareScreen({ navigation }) {
             ) : null}
           </ScrollView>
           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-              onPress={() => setIndex(-1)}
-            >
-              <Feather name="rotate-ccw" size={15} color={C.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.tint, borderRadius: R.md, padding: 13 }}
-              onPress={() => navigation.goBack()}
-            >
-              <Feather name="check" size={16} color={C.tintText} />
-              <Text style={[T.bodyMed, { color: C.tintText }]}>Fertig</Text>
-            </TouchableOpacity>
+            <GhostButton label="" icon="rotate-ccw" onPress={() => setIndex(-1)} style={{ paddingHorizontal: 16 }} />
+            <PrimaryButton label="Fertig" icon="check" onPress={() => navigation.goBack()} style={{ flex: 1 }} />
           </View>
         </View>
       )}

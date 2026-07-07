@@ -27,6 +27,7 @@ import { Feather } from '@expo/vector-icons';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { analyzeFridgePhoto } from '../api/client';
+import { ScreenHeader, Surface, PrimaryButton, GhostButton } from '../components/ui';
 
 const ZOOM_PADDING = 1.7;   // Box füllt ~60% des sichtbaren Ausschnitts
 const MAX_ZOOM = 6;
@@ -212,48 +213,29 @@ export default function FridgeScanScreen({ navigation }) {
   // ── Render ─────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.sm, gap: S.sm }}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-        >
-          <Feather name="x" size={18} color={C.text} />
-        </TouchableOpacity>
-        <Text style={[T.h3, { color: C.text, flex: 1 }]}>Kühlschrank-Scan</Text>
-        {phase === 'review' && index >= 0 && (
-          <Text style={[T.label, { color: C.textSecondary }]}>{index + 1} / {items.length}</Text>
-        )}
-      </View>
+      {/* Header (App-Standard) */}
+      <ScreenHeader
+        title="Kühlschrank-Scan"
+        onBack={() => navigation.goBack()}
+        rightLabel={phase === 'review' && index >= 0 ? `${index + 1}/${items.length}` : undefined}
+      />
 
       {/* Start */}
       {phase === 'start' && (
         <ScrollView contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: 40 }}>
-          <View style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: 28, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginTop: S.md }}>
-            <View style={{ width: 88, height: 88, borderRadius: R.xl, backgroundColor: C.tint + '14', alignItems: 'center', justifyContent: 'center', marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '30' }}>
-              <Feather name="camera" size={40} color={C.tint} />
+          <Surface style={{ alignItems: 'center', padding: S.lg, marginTop: S.md }}>
+            <View style={{ width: 56, height: 56, borderRadius: R.md, backgroundColor: C.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: S.md }}>
+              <Feather name="camera" size={26} color={C.textSecondary} />
             </View>
-            <Text style={[T.h3, { color: C.text, marginBottom: S.sm, textAlign: 'center' }]}>Kühlschrank fotografieren</Text>
+            <Text style={[T.h3, { color: C.text, marginBottom: 6, textAlign: 'center' }]}>Kühlschrank fotografieren</Text>
             <Text style={[T.body, { color: C.textSecondary, textAlign: 'center', lineHeight: 22 }]}>
               Die KI erkennt alle Lebensmittel auf dem Foto. Danach gehst du sie Schritt für Schritt durch — die App zoomt auf jedes Produkt, du bestätigst Name und Menge.
             </Text>
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14 }}
-                onPress={() => pickImage(true)}
-              >
-                <Feather name="camera" size={18} color={C.tintText} />
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Kamera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                onPress={() => pickImage(false)}
-              >
-                <Feather name="image" size={18} color={C.text} />
-                <Text style={[T.bodyMed, { color: C.text }]}>Galerie</Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg, alignSelf: 'stretch' }}>
+              <PrimaryButton label="Kamera" icon="camera" onPress={() => pickImage(true)} style={{ flex: 1 }} />
+              <GhostButton label="Galerie" icon="image" onPress={() => pickImage(false)} style={{ flex: 1 }} />
             </View>
-          </View>
+          </Surface>
           <View style={{ flexDirection: 'row', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginTop: S.md }}>
             <Feather name="info" size={15} color={C.textSecondary} />
             <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 18 }]}>
@@ -272,7 +254,7 @@ export default function FridgeScanScreen({ navigation }) {
             </View>
           )}
           <View style={{ alignItems: 'center', gap: 10, marginTop: S.xl }}>
-            <ActivityIndicator color={C.tint} size="large" />
+            <ActivityIndicator color={C.text} size="large" />
             <Text style={[T.bodyMed, { color: C.text }]}>KI erkennt Lebensmittel…</Text>
             <Text style={[T.caption, { color: C.textTertiary }]}>Das kann einen Moment dauern</Text>
           </View>
@@ -323,28 +305,15 @@ export default function FridgeScanScreen({ navigation }) {
                 <Feather name="check-circle" size={20} color={C.success} />
                 <Text style={[T.h3, { color: C.text }]}>{items.length} Produkte erkannt</Text>
               </View>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 15 }}
-                onPress={() => goTo(0)}
-              >
-                <Feather name="play" size={17} color={C.tintText} />
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Schritt für Schritt durchgehen</Text>
-              </TouchableOpacity>
+              <PrimaryButton label="Schritt für Schritt durchgehen" icon="play" onPress={() => goTo(0)} />
               <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                <TouchableOpacity
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                  onPress={() => saveAll(items)}
-                  disabled={saving}
-                >
-                  {saving ? <ActivityIndicator size="small" color={C.text} /> : <Feather name="zap" size={15} color={C.text} />}
-                  <Text style={[T.bodyMed, { color: C.text }]}>Alle direkt übernehmen</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, paddingHorizontal: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                  onPress={reset}
-                >
-                  <Feather name="refresh-cw" size={15} color={C.text} />
-                </TouchableOpacity>
+                <GhostButton
+                  label={saving ? 'Speichert…' : 'Alle direkt übernehmen'}
+                  icon={saving ? undefined : 'zap'}
+                  onPress={() => !saving && saveAll(items)}
+                  style={{ flex: 1 }}
+                />
+                <GhostButton label="" icon="refresh-cw" onPress={reset} style={{ paddingHorizontal: 14 }} />
               </View>
             </View>
           )}
@@ -397,20 +366,8 @@ export default function FridgeScanScreen({ navigation }) {
                 </Text>
 
                 <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md }}>
-                  <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
-                    onPress={() => decide('skipped')}
-                  >
-                    <Feather name="x" size={16} color={C.textSecondary} />
-                    <Text style={[T.bodyMed, { color: C.textSecondary }]}>Überspringen</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.tint, borderRadius: R.md, padding: 13 }}
-                    onPress={() => decide('added')}
-                  >
-                    <Feather name="check" size={16} color={C.tintText} />
-                    <Text style={[T.bodyMed, { color: C.tintText }]}>Übernehmen</Text>
-                  </TouchableOpacity>
+                  <GhostButton label="Überspringen" icon="x" onPress={() => decide('skipped')} style={{ flex: 1 }} />
+                  <PrimaryButton label="Übernehmen" icon="check" onPress={() => decide('added')} style={{ flex: 1.4 }} />
                 </View>
               </View>
             </View>
@@ -430,25 +387,18 @@ export default function FridgeScanScreen({ navigation }) {
                   {acceptedItems.map(p => p.name).join(', ')}
                 </Text>
               )}
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint, borderRadius: R.md, padding: 15, opacity: saving ? 0.7 : 1 }}
-                onPress={() => saveAll(acceptedItems)}
+              <PrimaryButton
+                label={saving ? 'Speichert…' : (acceptedItems.length > 0 ? `${acceptedItems.length} in die Speisekammer` : 'Fertig')}
+                icon={saving ? undefined : 'plus-circle'}
                 disabled={saving}
-              >
-                {saving
-                  ? <ActivityIndicator size="small" color={C.tintText} />
-                  : <Feather name="plus-circle" size={17} color={C.tintText} />}
-                <Text style={[T.bodyMed, { color: C.tintText }]}>
-                  {acceptedItems.length > 0 ? `${acceptedItems.length} in die Speisekammer` : 'Fertig'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.bgSecondary, borderRadius: R.md, padding: 13, marginTop: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
+                onPress={() => saveAll(acceptedItems)}
+              />
+              <GhostButton
+                label="Nochmal durchgehen"
+                icon="rotate-ccw"
                 onPress={() => { setPhase('review'); goTo(0); }}
-              >
-                <Feather name="rotate-ccw" size={15} color={C.text} />
-                <Text style={[T.bodyMed, { color: C.text }]}>Nochmal durchgehen</Text>
-              </TouchableOpacity>
+                style={{ marginTop: S.sm }}
+              />
             </View>
           )}
         </View>
