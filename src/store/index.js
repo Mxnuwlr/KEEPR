@@ -418,6 +418,26 @@ export const useStore = create((set, get) => ({
   completeWorkout: async (data) => {
     const result = await api.completeWorkout(data);
     await get().fetchTrainingPlan();
+    // Jede abgeschlossene Einheit fliesst in die KI-Athleten-Analyse (still im Hintergrund)
+    get().analyzeAthlete().catch(() => {});
+    return result;
+  },
+
+  // ── KI-Athleten-Analyse (Profil-Autokorrektur + Belastungs-Check) ──────────
+  athleteInsight: null,
+  fetchAthleteInsight: async () => { try { set({ athleteInsight: await api.getAthleteInsight() }); } catch (e) {} },
+  analyzeAthlete: async () => {
+    const result = await api.analyzeAthlete();
+    set({ athleteInsight: result });
+    // Profil kann serverseitig angepasst worden sein (Fitnesslevel, FTP, Paces) → frisch laden
+    if (result?.applied && Object.keys(result.applied).length) {
+      try {
+        const profile = await api.getProfile();
+        const updated = { ...get().user, ...profile };
+        set({ user: updated });
+        await AsyncStorage.setItem('user', JSON.stringify(updated));
+      } catch (e) {}
+    }
     return result;
   },
 

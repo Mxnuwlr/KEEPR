@@ -37,6 +37,14 @@ export async function requestNotificationPermission() {
   } catch (e) { return false; }
 }
 
+/** Sofortige lokale Notification (z.B. Auto-Sync-Import, KI-Coach). */
+export async function notifyNow(title, body) {
+  try {
+    if (!Notifications) return;
+    await Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null });
+  } catch (e) {}
+}
+
 /** Alle geplanten Notifications löschen. */
 export async function cancelAllNotifications() {
   try {

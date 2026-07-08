@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSecureItem } from './secureStorage';
 import { api, syncIntervalsIcu, syncOura } from '../api/client';
 import { useStore } from '../store';
+import { notifyNow } from '../notifications';
 
 const LAST_KEY = 'auto_sync_last';
 const MIN_GAP_MS = 10 * 60 * 1000; // 10 Minuten
@@ -38,9 +39,12 @@ export async function autoSyncConnectedApps({ force = false } = {}) {
     const results = { strava: 0, intervals: false, oura: false };
 
     // Strava — Server holt neue Aktivitäten direkt von der Strava-API
+    // (inkl. Detaildaten: Splits, Runden, Watt, Kalorien)
+    let stravaActivities = [];
     try {
       const r = await api.syncStrava();
       results.strava = r?.synced || 0;
+      stravaActivities = r?.activities || [];
     } catch (e) {}
 
     // Intervals.icu — direkt vom Client (Key liegt im Keychain)
@@ -69,6 +73,24 @@ export async function autoSyncConnectedApps({ force = false } = {}) {
         results.oura = true;
       }
     } catch (e) {}
+
+    // Neue Einheiten importiert → Benachrichtigung + KI-Coach analysiert sofort
+    if (results.strava > 0) {
+      const names = stravaActivities.slice(0, 3)
+        .map(a => `${a.name}${a.distanceKm ? ` (${a.distanceKm} km)` : ''}`)
+        .join(', ');
+      notifyNow(
+        results.strava === 1 ? 'Neue Einheit von Strava' : `${results.strava} neue Einheiten von Strava`,
+        `${names}${stravaActivities.length > 3 ? ' …' : ''} — dein KI-Coach analysiert die Leistung.`
+      );
+      try {
+        const insight = await useStore.getState().analyzeAthlete();
+        const hasChanges = insight?.applied && Object.keys(insight.applied).length > 0;
+        if (insight?.nachricht && (hasChanges || insight.belastung === 'zu_hoch' || insight.belastung === 'zu_niedrig')) {
+          notifyNow('Dein KI-Coach', insight.nachricht);
+        }
+      } catch (e) {}
+    }
 
     return results;
   } finally {

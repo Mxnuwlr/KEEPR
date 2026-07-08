@@ -823,7 +823,7 @@ function RegenerateModal({ visible, onClose, onSubmit, loading }) {
 export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, trainingPlan, fetchTrainingPlan, generateTrainingPlan, geminiKey, externalData, returnFromBreak, setReturnFromBreak, updateSessionAt, regenerateSessionAt, rebalancePlan, lastEditedSessionId, generateMobilityFlow, mobilityResult, dailyContext } = useStore();
+  const { user, trainingPlan, fetchTrainingPlan, generateTrainingPlan, geminiKey, externalData, returnFromBreak, setReturnFromBreak, updateSessionAt, regenerateSessionAt, rebalancePlan, lastEditedSessionId, generateMobilityFlow, mobilityResult, dailyContext, athleteInsight, fetchAthleteInsight } = useStore();
   const { routines, sessions, fetchSessions } = useKraftStore();
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
   const [completedMap, setCompletedMap] = useState({});
@@ -886,6 +886,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
 
   useEffect(() => { loadPlan(); }, []);
   useEffect(() => { if (sessions.length === 0) fetchSessions(40); }, []);
+  useEffect(() => { fetchAthleteInsight(); }, []);
 
   // Trainingsstatus: Pausenerkennung, Belastungs- & Ermüdungstrend
   const trainingStatus = useMemo(() =>
@@ -1262,6 +1263,38 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                 <Text style={[T.caption, { color: C.textSecondary, marginTop: 2 }]}>{trainingPlan.description || trainingPlan.planData?.description}</Text>
               )}
             </View>
+
+            {/* KI-Coach: automatische Einheiten-Analyse (Profil-Anpassungen + Belastung) */}
+            {athleteInsight?.nachricht && (() => {
+              const applied = athleteInsight.applied || {};
+              const appliedParts = [
+                applied.fitnessLevel && `Level: ${{ beginner: 'Anfänger', intermediate: 'Fortgeschritten', advanced: 'Fortgeschritten+', elite: 'Elite' }[applied.fitnessLevel] || applied.fitnessLevel}`,
+                applied.ftp && `FTP: ${applied.ftp} W`,
+                applied.maxHr && `maxHF: ${applied.maxHr}`,
+                applied.runPace && `Lauf-Pace: ${Math.floor(applied.runPace / 60)}:${String(applied.runPace % 60).padStart(2, '0')}/km`,
+                applied.swimPace && `Schwimm-Pace: ${Math.floor(applied.swimPace / 60)}:${String(applied.swimPace % 60).padStart(2, '0')}/100m`,
+              ].filter(Boolean);
+              const loadColor = athleteInsight.belastung === 'zu_hoch' ? C.danger : athleteInsight.belastung === 'zu_niedrig' ? C.warning : C.success;
+              const loadLabel = athleteInsight.belastung === 'zu_hoch' ? 'Belastung zu hoch' : athleteInsight.belastung === 'zu_niedrig' ? 'Luft nach oben' : 'Belastung passend';
+              return (
+                <View style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: 6 }}>
+                    <Feather name="cpu" size={15} color={C.text} />
+                    <Text style={[T.label, { color: C.textTertiary, flex: 1 }]}>DEIN KI-COACH</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: loadColor + '18', borderRadius: R.full, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: loadColor }} />
+                      <Text style={[T.label, { color: loadColor }]}>{loadLabel}</Text>
+                    </View>
+                  </View>
+                  <Text style={[T.caption, { color: C.textSecondary, lineHeight: 18 }]}>{athleteInsight.nachricht}</Text>
+                  {appliedParts.length > 0 && (
+                    <Text style={[T.caption, { color: C.text, marginTop: 6 }]}>
+                      Automatisch angepasst: <Text style={{ fontWeight: '700' }}>{appliedParts.join(' · ')}</Text>
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Recovery-Coaching: schlecht erholt → heute leichter + Recovery-Flow */}
             {recovery.level !== 'good' && recovery.hasData && (

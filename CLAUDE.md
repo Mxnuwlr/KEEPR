@@ -349,6 +349,33 @@ Scanner-Screens + Profil-Tab ans UI-Kit (`components/ui.js`) angeglichen — Nut
   nur bei Ausdauer (FTP nur bike/tri, Schwimm-Pace nur swim/tri, Lauf-Pace nur run/tri/hyrox);
   Bestleistungen nur run (5k–Marathon) bzw. swim (1 km).
 
+## KI-Athleten-Analyse + Strava-Detaildaten (2026-07-08) ERLEDIGT
+„Perfekter individueller Coach": jede Einheit wird automatisch analysiert, Profil korrigiert
+sich selbst, Plan rudert bei Überlastung zurück — alles transparent kommuniziert.
+- **Strava-Sync erweitert (Backend, deployed):** pro NEUER Aktivität Detail-Abruf
+  (`/activities/:id` + `/laps`, max. 10/Sync) → exercises_completed-JSON enthält jetzt
+  max_hr, Ø/max-Speed, Watt (avg/NP), Cadence, Höhenmeter, Suffer Score, Kalorien,
+  **splits** (km/Zeit/Pace/HF/hm) + **laps**. Spalten title/calories/distance/avg_hr
+  werden befüllt. Response enthält `activities:[{name,sportType,distanceKm,durationMin}]`
+  (für Benachrichtigung). KEINE Streams (sekündliche Daten) — bewusst.
+- **`POST /api/athlete/analyze`** (auth+aiLimiter): Gemini prüft Profil vs. echte Leistung
+  (21 Tage Einheiten inkl. Splits + Check-ins). JSON: fitness_level, profil_updates
+  (run_pace_s_km/swim_pace_s_100m/ftp_w/max_hr), belastung (zu_hoch/passend/zu_niedrig),
+  plan_anpassung, nachricht, begruendung. **Server-Guardrails:** Werte geclampt, maxHF nie
+  unter beobachtete HF + nur erhöhen, Level nur aus erlaubter Liste. Updates direkt in
+  users-Tabelle. Persistiert in `athlete_insights` (max. 20/User). `GET /api/athlete/insight`.
+  **Getestet:** Elite-Profil + 17 km/h bei HF 170 → beginner, FTP 350→150, belastung
+  zu_hoch + konkrete Rückruder-Anweisung; maxHF-Senkung korrekt blockiert.
+- **Plan-Generierung:** `insightSection` (letzte Analyse ≤14 Tage) im Prompt — bei
+  zu_hoch explizit „Volumen/Intensität 20-30% reduzieren" + plan_anpassung.
+- **Client:** `api.analyzeAthlete/getAthleteInsight`, Store `athleteInsight` +
+  `analyzeAthlete()` (lädt danach Profil neu → UI zeigt korrigierte Werte),
+  `completeWorkout` triggert Analyse fire-and-forget. autoSync: neue Strava-Einheiten →
+  **lokale Notification** („X neue Einheiten … KI-Coach analysiert") + Analyse + zweite
+  Notification mit KI-Nachricht (nur bei Änderungen/auffälliger Belastung).
+  `notifyNow(title, body)` in notifications.js. **TrainingScreen:** „DEIN KI-COACH"-Karte
+  (Nachricht, Belastungs-Badge, „Automatisch angepasst: …").
+
 ## Emoji-freie UI (2026-07-01)
 Alle pictographischen Emojis aus der UI entfernt → durch Feather / MaterialCommunityIcons
 ersetzt (professioneller Look). Shared Helper `muscleIcon(group)` in `data/exercises.js`

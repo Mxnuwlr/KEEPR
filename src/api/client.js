@@ -200,6 +200,9 @@ export const api = {
   disconnectApp: (appName) => request('DELETE', `/api/connected-apps/${appName}`),
   getStravaAuthUrl: () => request('GET', '/api/strava/auth-url'),
   syncStrava: () => request('POST', '/api/strava/sync'),
+  // KI-Athleten-Analyse: prueft Profil gegen echte Leistung, passt es serverseitig an
+  analyzeAthlete: () => request('POST', '/api/athlete/analyze', {}),
+  getAthleteInsight: () => request('GET', '/api/athlete/insight'),
 
   // Avatar
   uploadAvatar: async (imageUri) => {
