@@ -265,7 +265,7 @@ export async function verifyIntervalsCredentials(athleteId, apiKey) {
   const res = await fetch(`https://intervals.icu/api/v1/athlete/${athleteId}`, {
     headers: { Authorization: `Basic ${auth}` },
   });
-  if (res.status === 401) throw new Error('Ungültige Anmeldedaten — Athlete ID oder API Key falsch');
+  if (res.status === 401 || res.status === 403) throw new Error('API-Key ungültig — bitte neu kopieren (intervals.icu → Settings → Developer Settings)');
   if (!res.ok) throw new Error(`Intervals.icu Fehler: ${res.status}`);
   return res.json();
 }

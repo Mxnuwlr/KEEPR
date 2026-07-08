@@ -160,10 +160,11 @@ const APPS = [
     authType: 'apikey',
     available: true,
     fields: [
-      { key: 'athleteId', label: 'Athlete ID', placeholder: 'z.B. i12345 (aus der URL)', secure: false },
-      { key: 'apiKey', label: 'API Key', placeholder: 'Intervals.icu → Einstellungen → API', secure: true },
+      { key: 'apiKey', label: 'API Key', placeholder: 'Hier einfügen…', secure: true },
     ],
-    hint: 'Athlete ID findest du in der URL nach dem Login: intervals.icu/athlete/i12345/...',
+    hint: 'Tippe auf „API-Key holen": dort einloggen (kostenlos), unter Developer Settings den API-Key kopieren und hier einfügen. Fertig — mehr braucht es nicht.',
+    keyUrl: 'https://intervals.icu/settings',
+    keyUrlLabel: 'API-Key holen (intervals.icu öffnen)',
   },
   {
     key: 'oura',
@@ -410,15 +411,16 @@ export default function ConnectedAppsScreen({ navigation }) {
   };
 
   const handleSaveIntervals = async () => {
-    const { athleteId, apiKey } = inputValues;
-    if (!athleteId.trim() || !apiKey.trim()) {
-      Alert.alert('Pflichtfelder', 'Bitte Athlete ID und API Key eingeben.');
+    const { apiKey } = inputValues;
+    if (!apiKey.trim()) {
+      Alert.alert('Pflichtfeld', 'Bitte den API-Key einfügen.');
       return;
     }
     setSaving('intervals');
     try {
-      await verifyIntervalsCredentials(athleteId.trim(), apiKey.trim());
-      const creds = { athleteId: athleteId.trim(), apiKey: apiKey.trim() };
+      // Athlete-ID "0" = der Besitzer des API-Keys (intervals.icu-Konvention) — keine ID-Eingabe nötig
+      await verifyIntervalsCredentials('0', apiKey.trim());
+      const creds = { athleteId: '0', apiKey: apiKey.trim() };
       await setSecureItem(STORAGE.intervals, JSON.stringify(creds));
       setCredentials(prev => ({ ...prev, intervals: creds }));
       setExpandedApp(null);
@@ -682,6 +684,15 @@ export default function ConnectedAppsScreen({ navigation }) {
                         <Feather name="info" size={13} color={C.textTertiary} style={{ marginTop: 1 }} />
                         <Text style={[T.caption, { color: C.textTertiary, flex: 1, lineHeight: 18 }]}>{app.hint}</Text>
                       </View>
+                    )}
+                    {app.keyUrl && (
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: app.color, borderRadius: R.sm, paddingVertical: 11 }}
+                        onPress={() => Linking.openURL(app.keyUrl)}
+                      >
+                        <Feather name="external-link" size={14} color="#fff" />
+                        <Text style={[T.label, { color: '#fff' }]}>{app.keyUrlLabel || 'Key-Seite öffnen'}</Text>
+                      </TouchableOpacity>
                     )}
                     {app.fields.map(field => (
                       <View key={field.key}>
