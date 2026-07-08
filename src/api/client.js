@@ -277,11 +277,13 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   const auth = btoa(`API_KEY:${apiKey}`);
   const base = `https://intervals.icu/api/v1/athlete/${athleteId}`;
   const today = new Date().toISOString().slice(0, 10);
+  // newest = morgen, sonst fehlen die Einheiten von HEUTE (newest wird als 00:00 interpretiert)
+  const newest = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const oldest = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const headers = { Authorization: `Basic ${auth}` };
 
   const [actRes, wellRes] = await Promise.all([
-    fetch(`${base}/activities?oldest=${oldest}&newest=${today}`, { headers }),
+    fetch(`${base}/activities?oldest=${oldest}&newest=${newest}`, { headers }),
     fetch(`${base}/wellness?oldest=${oldest}&newest=${today}`, { headers }),
   ]);
 
