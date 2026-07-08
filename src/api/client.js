@@ -291,17 +291,15 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   if (!actRes.ok) throw new Error(`Intervals.icu Fehler: ${actRes.status}`);
 
   const activities = await actRes.json();
-  // TEMP-DEBUG: was liefert intervals.icu wirklich?
-  try {
-    const dbg = (Array.isArray(activities) ? activities : []).map(a => `${String(a.start_date_local).slice(0, 16)} ${a.type} ${a.name}`);
-    console.log(`[intervals-sync] oldest=${oldest} newest=${newest} -> ${dbg.length} Aktivitäten:\n${dbg.join('\n')}`);
-  } catch (e) {}
   const wellness = wellRes.ok ? await wellRes.json() : [];
   // Letzter Wellness-Eintrag für CTL/ATL/TSB
   const latestWellness = Array.isArray(wellness) && wellness.length > 0 ? wellness[wellness.length - 1] : null;
 
   // Auto-Schätzung FTP + maxHF aus den Aktivitäten (best-effort, falls Felder vorhanden)
   const acts = Array.isArray(activities) ? activities : [];
+  // Strava-Quelle: intervals.icu darf diese Aktivitäten NICHT über die API weitergeben
+  // (Strava-Sperre) — zählen, damit die App den Nutzer auf Garmin-Direktverbindung hinweist.
+  const stravaLocked = acts.filter(a => a.source === 'STRAVA' && !a.moving_time).length;
   const hrVals = acts.map(a => a.max_heartrate).filter(v => typeof v === 'number' && v > 120 && v < 230);
   const estMaxHr = hrVals.length ? Math.max(...hrVals) : null;
   const ftpVals = acts.map(a => a.icu_eftp ?? a.icu_ftp).filter(v => typeof v === 'number' && v > 50 && v < 600);
@@ -389,6 +387,7 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
     tsb: latestWellness?.tsb ?? null,
     imported,
     importedActivities,
+    stravaLocked,
     syncedAt: new Date().toISOString(),
   };
 }

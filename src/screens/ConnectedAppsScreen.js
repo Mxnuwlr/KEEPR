@@ -479,7 +479,10 @@ export default function ConnectedAppsScreen({ navigation }) {
       const autoNote = Object.keys(profUpdates).length
         ? `\nAuto-aktualisiert: ${[profUpdates.ftp && `FTP ${profUpdates.ftp}W`, profUpdates.maxHr && `maxHF ${profUpdates.maxHr}`].filter(Boolean).join(' · ')}`
         : '';
-      Alert.alert('Sync abgeschlossen', `${data.activityCount} Aktivitäten geladen, ${data.imported || 0} neu als Einheiten importiert.${data.ctl != null ? `\nCTL: ${Math.round(data.ctl)} | ATL: ${Math.round(data.atl)} | TSB: ${Math.round(data.tsb)}` : ''}${autoNote}`);
+      const lockedNote = data.stravaLocked > 0
+        ? `\n\nHinweis: ${data.stravaLocked} Aktivität${data.stravaLocked !== 1 ? 'en' : ''} kommen bei intervals.icu über STRAVA rein und sind dort API-gesperrt. Lösung: Auf intervals.icu → Settings → Garmin Connect direkt verbinden (und Strava als Quelle trennen).`
+        : '';
+      Alert.alert('Sync abgeschlossen', `${data.activityCount} Aktivitäten geladen, ${data.imported || 0} neu als Einheiten importiert.${data.ctl != null ? `\nCTL: ${Math.round(data.ctl)} | ATL: ${Math.round(data.atl)} | TSB: ${Math.round(data.tsb)}` : ''}${autoNote}${lockedNote}`);
     } catch (e) { Alert.alert('Sync Fehler', e.message); }
     finally { setSyncing(null); }
   };
