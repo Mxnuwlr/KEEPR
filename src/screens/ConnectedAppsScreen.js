@@ -422,6 +422,8 @@ export default function ConnectedAppsScreen({ navigation }) {
       await verifyIntervalsCredentials('0', apiKey.trim());
       const creds = { athleteId: '0', apiKey: apiKey.trim() };
       await setSecureItem(STORAGE.intervals, JSON.stringify(creds));
+      // Server-Worker aktivieren: importiert alle 10 Min auch bei geschlossener App
+      try { await api.connectIntervalsServer(apiKey.trim()); } catch (e) {}
       setCredentials(prev => ({ ...prev, intervals: creds }));
       setExpandedApp(null);
       // Direkt sync starten
@@ -512,6 +514,7 @@ export default function ConnectedAppsScreen({ navigation }) {
         } else if (appKey === 'intervals') {
           await removeSecureItem(STORAGE.intervals);
           await AsyncStorage.removeItem(STORAGE.intervals_sync);
+          try { await api.disconnectIntervalsServer(); } catch (e) {}
           setCredentials(prev => ({ ...prev, intervals: null }));
           setSyncData(prev => ({ ...prev, intervals: null }));
         } else if (appKey === 'oura') {
@@ -584,7 +587,7 @@ export default function ConnectedAppsScreen({ navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, borderRadius: R.md, padding: 12, marginBottom: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
           <Feather name="refresh-cw" size={14} color={C.success} />
           <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 17 }]}>
-            Auto-Sync aktiv: Verbundene Apps werden beim Öffnen von keepr automatisch synchronisiert — frisch abgeschlossene Einheiten sind sofort da.
+            Auto-Sync aktiv: Der keepr-Server holt neue Einheiten alle 10 Minuten von intervals.icu — auch bei geschlossener App. Zusätzlich wird beim Öffnen der App gesynct.
           </Text>
         </View>
 

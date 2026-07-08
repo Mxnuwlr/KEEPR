@@ -53,6 +53,8 @@ export async function autoSyncConnectedApps({ force = false } = {}) {
       const raw = await getSecureItem('connected_intervals_credentials');
       if (raw) {
         const c = JSON.parse(raw);
+        // Key serverseitig registrieren (idempotent) → Pi-Worker synct auch ohne App
+        api.connectIntervalsServer(c.apiKey).catch(() => {});
         const data = await syncIntervalsIcu(c.athleteId, c.apiKey);
         await st.setExternalData('intervals', data);
         if (data.imported > 0) {

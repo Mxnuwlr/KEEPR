@@ -205,6 +205,9 @@ export const api = {
   getAthleteInsight: () => request('GET', '/api/athlete/insight'),
   // Aktivitaeten-Import (z.B. intervals.icu — Garmin-Daten ohne Strava-Abo)
   importWorkouts: (source, workouts) => request('POST', '/api/workouts/import', { source, workouts }),
+  // Key serverseitig registrieren → Pi-Worker synct alle 10 Min, auch ohne App
+  connectIntervalsServer: (apiKey) => request('POST', '/api/intervals/connect', { apiKey }),
+  disconnectIntervalsServer: () => request('DELETE', '/api/intervals/connect'),
 
   // Avatar
   uploadAvatar: async (imageUri) => {
