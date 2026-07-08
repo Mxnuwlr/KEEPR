@@ -331,7 +331,15 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
         if (r.ok) {
           const streams = await r.json();
           const latlng = (Array.isArray(streams) ? streams : []).find(s => s.type === 'latlng');
-          const pts = Array.isArray(latlng?.data) ? latlng.data.filter(p => Array.isArray(p) && p.length === 2 && p[0] != null) : [];
+          // intervals.icu: lat in data, lng in data2 (Fallback: Paar-Format)
+          let pts = [];
+          if (Array.isArray(latlng?.data) && Array.isArray(latlng?.data2)) {
+            for (let pi = 0; pi < latlng.data.length; pi++) {
+              if (latlng.data[pi] != null && latlng.data2[pi] != null) pts.push([latlng.data[pi], latlng.data2[pi]]);
+            }
+          } else if (Array.isArray(latlng?.data)) {
+            pts = latlng.data.filter(p => Array.isArray(p) && p.length === 2 && p[0] != null);
+          }
           if (pts.length > 10) {
             const step = Math.max(1, Math.ceil(pts.length / 200));
             routeMap[a.id] = pts.filter((_, i) => i % step === 0).map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
