@@ -269,9 +269,12 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                     </View>
                   ) : null}
                 </View>
-                <View style={{ flexDirection: 'row', gap: S.sm }}>
-                  {workout.duration_minutes && <StatPill label="Dauer" value={`${workout.duration_minutes} Min`} />}
-                  {workout.perceived_effort && <StatPill label="RPE" value={`${workout.perceived_effort}/10`} />}
+                <View style={{ flexDirection: 'row', gap: S.sm, flexWrap: 'wrap' }}>
+                  {workout.duration_minutes ? <StatPill label="Dauer" value={`${workout.duration_minutes} Min`} /> : null}
+                  {workout.distance ? <StatPill label="Distanz" value={`${workout.distance} km`} /> : null}
+                  {workout.avg_hr ? <StatPill label="ØHF" value={`${workout.avg_hr}`} /> : null}
+                  {workout.calories ? <StatPill label="kcal" value={`${workout.calories}`} /> : null}
+                  {workout.perceived_effort ? <StatPill label="RPE" value={`${workout.perceived_effort}/10`} /> : null}
                 </View>
                 {workout.notes && <Text style={[T.caption, { color: C.textSecondary, fontStyle: 'italic', marginTop: S.sm }]}>"{workout.notes}"</Text>}
                 <TouchableOpacity
@@ -355,14 +358,32 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
       {previewSession && (() => {
         const sc = getSportColor(previewSession.sport_type);
         const exercises = previewSession.exercises || previewSession.sessionExercises || [];
+        // Erledigte Einheit (importiert/abgeschlossen) vs. geplante Session
+        const isCompleted = !!(previewSession.completed_at || previewSession.exercisesCompleted);
+        const done = previewSession.exercisesCompleted || {};
+        const fmtT = (s) => s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : null;
+        const stats = isCompleted ? [
+          ['Dauer', previewSession.duration_minutes ? `${previewSession.duration_minutes} Min` : null],
+          ['Distanz', previewSession.distance ? `${previewSession.distance} km` : null],
+          ['Ø Puls', done.avg_hr || previewSession.avg_hr ? `${done.avg_hr || previewSession.avg_hr} bpm` : null],
+          ['Max. Puls', done.max_hr ? `${done.max_hr} bpm` : null],
+          ['Ø Tempo', done.avg_speed_kmh ? `${done.avg_speed_kmh} km/h` : null],
+          ['Ø Watt', done.avg_watts ? `${done.avg_watts} W` : null],
+          ['NP', done.weighted_watts ? `${done.weighted_watts} W` : null],
+          ['Höhenmeter', done.elevation_gain_m ? `${done.elevation_gain_m} m` : null],
+          ['Kalorien', done.calories || previewSession.calories ? `${done.calories || previewSession.calories} kcal` : null],
+          ['Load', done.training_load ? `${done.training_load}` : null],
+        ].filter(([, v]) => v) : [];
+        const laps = Array.isArray(done.laps) ? done.laps : (Array.isArray(done.splits) ? done.splits : []);
         return (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: S.lg, paddingTop: S.xl, paddingBottom: 130 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.lg }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[T.h3, { color: C.text }]}>{previewSession.focus}</Text>
+                  <Text style={[T.h3, { color: C.text }]}>{previewSession.focus || previewSession.title || 'Einheit'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs, flexWrap: 'wrap' }}>
-                    {previewSession.duration > 0 && <Text style={[T.caption, { color: C.textSecondary }]}>{previewSession.duration} Min</Text>}
+                    {isCompleted && <Text style={[T.caption, { color: C.success, fontWeight: '600' }]}>✓ Absolviert</Text>}
+                    {!isCompleted && previewSession.duration > 0 && <Text style={[T.caption, { color: C.textSecondary }]}>{previewSession.duration} Min</Text>}
                     {previewSession.intensity && <Text style={[T.caption, { color: sc }]}>{previewSession.intensity}</Text>}
                   </View>
                 </View>
@@ -371,7 +392,44 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                 </TouchableOpacity>
               </View>
 
-              {getSessionSteps(previewSession).length > 0 && (
+              {/* Ergebnis-Werte (erledigte Einheit) */}
+              {stats.length > 0 && (
+                <View style={{ marginBottom: S.lg }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Ergebnis</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
+                    {stats.map(([l, v]) => (
+                      <View key={l} style={{ width: '30.5%', backgroundColor: C.surface, borderRadius: R.md, paddingVertical: 10, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                        <Text style={[T.bodyMed, { color: C.text, fontSize: 14 }]}>{v}</Text>
+                        <Text style={[T.label, { color: C.textTertiary, marginTop: 1 }]}>{l}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Runden / Splits */}
+              {isCompleted && laps.length > 1 && (
+                <View style={{ marginBottom: S.lg }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>
+                    {done.laps ? 'Runden' : 'Kilometer-Splits'}
+                  </Text>
+                  <View style={{ backgroundColor: C.surface, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
+                    {laps.slice(0, 25).map((lp, li) => (
+                      <View key={li} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 8, borderBottomWidth: li < Math.min(laps.length, 25) - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border, gap: S.sm }}>
+                        <Text style={[T.label, { color: lp.typ === 'WORK' ? sc : C.textTertiary, width: 24 }]}>{lp.km || li + 1}</Text>
+                        <Text style={[T.caption, { color: C.text, flex: 1 }]}>
+                          {lp.distanz_m ? `${(lp.distanz_m / 1000).toFixed(2)} km` : lp.pace_s_km ? `${fmtT(lp.pace_s_km)}/km` : ''}
+                          {lp.zeit_s ? ` · ${fmtT(lp.zeit_s)}` : ''}
+                        </Text>
+                        {lp.avg_watts ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_watts} W</Text> : null}
+                        {lp.avg_hr ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_hr} bpm</Text> : null}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {!isCompleted && getSessionSteps(previewSession).length > 0 && (
                 <View style={{ marginBottom: S.lg }}>
                   <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Profil</Text>
                   <WorkoutProfileChart steps={getSessionSteps(previewSession)} height={72} />
@@ -396,12 +454,14 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                 </View>
               )}
 
-              <TouchableOpacity
-                onPress={() => { setPreviewSession(null); onClose(); onTrainingPress?.(); }}
-                style={{ backgroundColor: C.tint, borderRadius: R.lg, padding: S.md, alignItems: 'center', marginTop: S.sm }}
-              >
-                <Text style={[T.bodyMed, { color: C.tintText }]}>Zum Training → Abschließen</Text>
-              </TouchableOpacity>
+              {!isCompleted && (
+                <TouchableOpacity
+                  onPress={() => { setPreviewSession(null); onClose(); onTrainingPress?.(); }}
+                  style={{ backgroundColor: C.tint, borderRadius: R.lg, padding: S.md, alignItems: 'center', marginTop: S.sm }}
+                >
+                  <Text style={[T.bodyMed, { color: C.tintText }]}>Zum Training → Abschließen</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         );

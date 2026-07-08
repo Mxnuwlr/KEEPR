@@ -322,6 +322,7 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   const workouts = sorted.map(a => ({
     externalId: String(a.id),
     date: String(a.start_date_local || '').slice(0, 10),
+    startTime: a.start_date_local || null,
     name: a.name || a.type || 'Aktivität',
     sportType: TYPE_MAP[a.type] || 'other',
     durationMin: Math.round((a.moving_time || a.elapsed_time || 0) / 60),
