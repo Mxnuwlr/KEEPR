@@ -1596,38 +1596,9 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
           </Animated.View>
         )}
 
-        {/* ── Importierte Aktivitäten (Intervals.icu) ── */}
-        {externalData?.intervals?.activities?.length > 0 && (
-          <View style={{ marginHorizontal: S.md, marginBottom: S.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-              <Feather name="download" size={13} color={C.textSecondary} />
-              <Text style={[T.label, { color: C.textSecondary }]}>IMPORTIERT (INTERVALS.ICU)</Text>
-            </View>
-            {externalData.intervals.activities.map((act, i) => {
-              const distKm = act.distance ? (act.distance / 1000).toFixed(1) : null;
-              const durMin = act.moving_time ? Math.round(act.moving_time / 60) : null;
-              const sport = (act.type || act.sport_type || 'run').toLowerCase();
-              const sc = getSportColor(sport);
-              const dateStr = act.start_date_local
-                ? new Date(act.start_date_local).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
-                : '';
-              return (
-                <View key={act.id || i} style={{ backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${sc}20`, alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialCommunityIcons name={SPORT_MCI[sport] || 'run'} size={18} color={sc} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{act.name || 'Aktivität'}</Text>
-                    <Text style={[T.caption, { color: C.textSecondary }]}>
-                      {[distKm && `${distKm} km`, durMin && `${durMin} Min`, act.average_heartrate && `${Math.round(act.average_heartrate)} bpm`].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                  {dateStr && <Text style={[T.caption, { color: C.textTertiary }]}>{dateStr}</Text>}
-                </View>
-              );
-            })}
-          </View>
-        )}
+        {/* Importierte Aktivitäten erscheinen als echte Einheiten im Kalender
+            und haken die geplanten Sessions der jeweiligen Woche ab —
+            keine separate Rohdaten-Liste mehr nötig. */}
       </ScrollView>
     </>
   );
