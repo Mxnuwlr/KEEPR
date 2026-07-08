@@ -467,6 +467,8 @@ export default function ConnectedAppsScreen({ navigation }) {
     const c = creds || credentials.intervals;
     if (!c) return;
     setSyncing('intervals');
+    // Key serverseitig registrieren (idempotent) → Pi-Worker synct auch ohne App
+    try { await api.connectIntervalsServer(c.apiKey); } catch (e) {}
     try {
       const data = await syncIntervalsIcu(c.athleteId, c.apiKey);
       await useStore.getState().setExternalData('intervals', data);
