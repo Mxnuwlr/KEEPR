@@ -36,6 +36,8 @@ import { assessRecovery, EASE_INSTRUCTION } from '../utils/recovery';
 import { weakestZones } from '../data/mobility';
 import { getSessionSteps } from '../utils/workoutStructure';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
+import ActivityDetail from '../components/ActivityDetail';
+import { getSportMci } from '../data/sports';
 
 const DAYS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 const DAY_SHORT = ['Mo','Di','Mi','Do','Fr','Sa','So'];
@@ -843,6 +845,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const [regenIndex, setRegenIndex] = useState(-1);
   const [regenLoading, setRegenLoading] = useState(false);
   const [rebalancing, setRebalancing] = useState(false);
+  const [detailWorkout, setDetailWorkout] = useState(null); // absolvierte Einheit (Strava-Detail)
 
   const handleRegenerate = async (instruction) => {
     setRegenLoading(true);
@@ -1593,13 +1596,68 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                 );
               })}
             </View>
+
+            {/* Diese Woche absolviert (importierte + geloggte Einheiten) */}
+            {Array.isArray(trainingPlan.completedWorkouts) && trainingPlan.completedWorkouts.length > 0 && (() => {
+              const acts = trainingPlan.completedWorkouts
+                .slice()
+                .sort((a, b) => String(b.completed_at || b.date).localeCompare(String(a.completed_at || a.date)));
+              return (
+                <View style={{ marginTop: S.xl }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.md }]}>Diese Woche absolviert</Text>
+                  <View style={{ backgroundColor: C.surface, borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
+                    {acts.map((w, i) => {
+                      const sc = getSportColor(w.sport_type);
+                      const done = w.exercisesCompleted || {};
+                      const dateStr = (() => { try { return new Date((w.completed_at || w.date).replace(' ', 'T')).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); } catch (e) { return w.date; } })();
+                      const meta = [w.distance && `${w.distance} km`, w.duration_minutes && `${w.duration_minutes} Min`, (done.avg_hr || w.avg_hr) && `${done.avg_hr || w.avg_hr} bpm`].filter(Boolean).join(' · ');
+                      return (
+                        <TouchableOpacity
+                          key={w.id || i}
+                          activeOpacity={0.7}
+                          onPress={() => setDetailWorkout(w)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.md, paddingHorizontal: S.md, borderBottomWidth: i < acts.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border }}
+                        >
+                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: `${sc}20`, alignItems: 'center', justifyContent: 'center' }}>
+                            <MaterialCommunityIcons name={getSportMci(w.sport_type)} size={19} color={sc} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{w.focus || w.title || 'Einheit'}</Text>
+                            <Text style={[T.caption, { color: C.textTertiary }]}>{dateStr}{meta ? ` · ${meta}` : ''}</Text>
+                          </View>
+                          <Feather name="chevron-right" size={16} color={C.textTertiary} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
           </Animated.View>
         )}
-
-        {/* Importierte Aktivitäten erscheinen als echte Einheiten im Kalender
-            und haken die geplanten Sessions der jeweiligen Woche ab —
-            keine separate Rohdaten-Liste mehr nötig. */}
       </ScrollView>
+
+      {/* Strava-artige Detailansicht einer absolvierten Einheit */}
+      {detailWorkout && (
+        <ActivityDetail
+          workout={detailWorkout}
+          onClose={() => setDetailWorkout(null)}
+          actions={detailWorkout.session_id ? [] : [{
+            icon: 'refresh-cw',
+            label: 'Als geplante Einheit verbuchen',
+            onPress: () => {
+              setDetailWorkout(null);
+              Alert.alert('Hinweis', 'Diese Aktivität ist keiner geplanten Einheit zugeordnet. Nutze „Woche ausbalancieren", um den Plan an deine tatsächlichen Einheiten anzupassen.');
+            },
+          }]}
+          onDelete={() => Alert.alert('Löschen?', detailWorkout.focus || detailWorkout.title || 'Einheit', [
+            { text: 'Abbrechen', style: 'cancel' },
+            { text: 'Löschen', style: 'destructive', onPress: async () => {
+              try { await api.deleteCompletedWorkout(detailWorkout.id); setDetailWorkout(null); loadPlan(); } catch (e) { Alert.alert('Fehler', e.message); }
+            }},
+          ])}
+        />
+      )}
     </>
   );
 }
