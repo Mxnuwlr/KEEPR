@@ -158,6 +158,15 @@ export default function SportprofilScreen({ navigation }) {
     save({ availableDays: current.includes(i) ? current.filter(x => x !== i) : [...current, i] });
   };
 
+  // Sichtbarkeit der Sektionen richtet sich nach den oben gewählten Sportarten
+  const sel = user?.sportTypes || [];
+  const has = (...keys) => keys.some(k => sel.includes(k));
+  const showStrength = has('strength', 'hyrox', 'calisthenics');
+  const showRun = has('run', 'triathlon', 'hyrox');
+  const showBike = has('bike', 'triathlon');
+  const showSwim = has('swim', 'triathlon');
+  const showEndurance = has('run', 'bike', 'swim', 'triathlon', 'row', 'hike', 'hyrox');
+
   const divider = <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: 16 }} />;
   const sectionLabel = (t) => (
     <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: 6 }]}>{t}</Text>
@@ -226,54 +235,70 @@ export default function SportprofilScreen({ navigation }) {
               ))}
             </View>
           </View>
-          {divider}
-          <View style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
-            <Text style={[T.body, { color: C.textSecondary, marginBottom: 2 }]}>Trainingsumfang pro Einheit</Text>
-            <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.sm }]}>Wie viele Übungen die KI pro Kraft-Einheit einplant</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {Object.entries(VOLUME_LABELS).map(([id, label]) => {
-                const active = (user?.sessionVolumePref || 'balanced') === id;
-                return (
-                  <TouchableOpacity key={id} style={{ flex: 1, paddingVertical: 8, borderRadius: R.sm, backgroundColor: active ? C.accent : C.bgTertiary, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: active ? C.accent : C.border }} onPress={() => save({ sessionVolumePref: id })}>
-                    <Text style={[T.label, { color: active ? C.accentText : C.textSecondary, fontSize: 10 }]} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          {showStrength && (<>
+            {divider}
+            <View style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
+              <Text style={[T.body, { color: C.textSecondary, marginBottom: 2 }]}>Trainingsumfang pro Einheit</Text>
+              <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.sm }]}>Wie viele Übungen die KI pro Kraft-Einheit einplant</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {Object.entries(VOLUME_LABELS).map(([id, label]) => {
+                  const active = (user?.sessionVolumePref || 'balanced') === id;
+                  return (
+                    <TouchableOpacity key={id} style={{ flex: 1, paddingVertical: 8, borderRadius: R.sm, backgroundColor: active ? C.accent : C.bgTertiary, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: active ? C.accent : C.border }} onPress={() => save({ sessionVolumePref: id })}>
+                      <Text style={[T.label, { color: active ? C.accentText : C.textSecondary, fontSize: 10 }]} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-          {divider}
-          <FieldRow last icon="list" label="Übungen pro Krafteinheit" value={user?.preferredExercises} onSave={v => save({ preferredExercises: parseInt(v) || null })} placeholder="z.B. 6" hint="Wunsch — leer = KI entscheidet" />
+            {divider}
+            <FieldRow last icon="list" label="Übungen pro Krafteinheit" value={user?.preferredExercises} onSave={v => save({ preferredExercises: parseInt(v) || null })} placeholder="z.B. 6" hint="Wunsch — leer = KI entscheidet" />
+          </>)}
           {divider}
           <FieldRow last icon="watch" label="Wunsch-Einheitsdauer" value={user?.preferredSessionMin} onSave={v => save({ preferredSessionMin: parseInt(v) || null })} placeholder="z.B. 60" unit="Min" hint="Leer = KI entscheidet" />
         </View>
 
-        {/* Leistungswerte */}
-        {sectionLabel('Leistungswerte')}
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <FieldRow last icon="zap" label="FTP" value={user?.ftp} onSave={v => save({ ftp: parseInt(v) || null })} placeholder="250" unit="W" hint="Functional Threshold Power (Rad)" />
-          {divider}
-          <FieldRow last icon="heart" label="Max-Herzfrequenz" value={user?.maxHr} onSave={v => save({ maxHr: parseInt(v) || null })} placeholder="190" unit="bpm" />
-          {divider}
-          <FieldRow last icon="moon" label="Ruhe-Herzfrequenz" value={user?.restingHr} onSave={v => save({ restingHr: parseInt(v) || null })} placeholder="55" unit="bpm" />
-          {divider}
-          <FieldRow last icon="droplet" label="Schwimm-Pace" value={user?.swimPace ? secondsToPace(user.swimPace) : ''} onSave={v => save({ swimPace: paceToSeconds(v) })} placeholder="1:45" unit="/100m" hint="Format: M:SS" />
-          {divider}
-          <FieldRow last icon="trending-up" label="Lauf-Pace" value={user?.runPace ? secondsToPace(user.runPace) : ''} onSave={v => save({ runPace: paceToSeconds(v) })} placeholder="5:30" unit="/km" hint="Format: M:SS" />
-        </View>
+        {/* Leistungswerte — nur für die gewählten Ausdauer-Sportarten */}
+        {showEndurance && (<>
+          {sectionLabel('Leistungswerte')}
+          <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+            {showBike && (<>
+              <FieldRow last icon="zap" label="FTP" value={user?.ftp} onSave={v => save({ ftp: parseInt(v) || null })} placeholder="250" unit="W" hint="Functional Threshold Power (Rad)" />
+              {divider}
+            </>)}
+            <FieldRow last icon="heart" label="Max-Herzfrequenz" value={user?.maxHr} onSave={v => save({ maxHr: parseInt(v) || null })} placeholder="190" unit="bpm" />
+            {divider}
+            <FieldRow last icon="moon" label="Ruhe-Herzfrequenz" value={user?.restingHr} onSave={v => save({ restingHr: parseInt(v) || null })} placeholder="55" unit="bpm" />
+            {showSwim && (<>
+              {divider}
+              <FieldRow last icon="droplet" label="Schwimm-Pace" value={user?.swimPace ? secondsToPace(user.swimPace) : ''} onSave={v => save({ swimPace: paceToSeconds(v) })} placeholder="1:45" unit="/100m" hint="Format: M:SS" />
+            </>)}
+            {showRun && (<>
+              {divider}
+              <FieldRow last icon="trending-up" label="Lauf-Pace" value={user?.runPace ? secondsToPace(user.runPace) : ''} onSave={v => save({ runPace: paceToSeconds(v) })} placeholder="5:30" unit="/km" hint="Format: M:SS" />
+            </>)}
+          </View>
+        </>)}
 
-        {/* Persönliche Bestleistungen */}
-        {sectionLabel('Persönliche Bestleistungen')}
-        <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-          <FieldRow last icon="award" label="5 km" value={user?.pr5k} onSave={v => save({ pr5k: v })} placeholder="–" hint="Format: MM:SS" />
-          {divider}
-          <FieldRow last icon="award" label="10 km" value={user?.pr10k} onSave={v => save({ pr10k: v })} placeholder="–" hint="Format: H:MM:SS" />
-          {divider}
-          <FieldRow last icon="award" label="Halbmarathon" value={user?.prHM} onSave={v => save({ prHM: v })} placeholder="–" hint="Format: H:MM:SS" />
-          {divider}
-          <FieldRow last icon="award" label="Marathon" value={user?.prMarathon} onSave={v => save({ prMarathon: v })} placeholder="–" hint="Format: H:MM:SS" />
-          {divider}
-          <FieldRow last icon="award" label="Schwimmen 1 km" value={user?.prSwim1k} onSave={v => save({ prSwim1k: v })} placeholder="–" hint="Format: MM:SS" />
-        </View>
+        {/* Persönliche Bestleistungen — nur für Laufen/Schwimmen */}
+        {(showRun || showSwim) && (<>
+          {sectionLabel('Persönliche Bestleistungen')}
+          <View style={{ backgroundColor: C.surface, marginHorizontal: S.md, borderRadius: R.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+            {showRun && (<>
+              <FieldRow last icon="award" label="5 km" value={user?.pr5k} onSave={v => save({ pr5k: v })} placeholder="–" hint="Format: MM:SS" />
+              {divider}
+              <FieldRow last icon="award" label="10 km" value={user?.pr10k} onSave={v => save({ pr10k: v })} placeholder="–" hint="Format: H:MM:SS" />
+              {divider}
+              <FieldRow last icon="award" label="Halbmarathon" value={user?.prHM} onSave={v => save({ prHM: v })} placeholder="–" hint="Format: H:MM:SS" />
+              {divider}
+              <FieldRow last icon="award" label="Marathon" value={user?.prMarathon} onSave={v => save({ prMarathon: v })} placeholder="–" hint="Format: H:MM:SS" />
+            </>)}
+            {showRun && showSwim && divider}
+            {showSwim && (
+              <FieldRow last icon="award" label="Schwimmen 1 km" value={user?.prSwim1k} onSave={v => save({ prSwim1k: v })} placeholder="–" hint="Format: MM:SS" />
+            )}
+          </View>
+        </>)}
 
         {/* Verletzungen & Gesundheit */}
         {sectionLabel('Verletzungen & Gesundheit')}

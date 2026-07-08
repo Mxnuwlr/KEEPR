@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
-import { Linking } from 'react-native';
+import { Linking, AppState } from 'react-native';
+import { autoSyncConnectedApps } from './src/utils/autoSync';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
@@ -255,6 +256,7 @@ function ProfilStack() {
       <Stack.Screen name="ProgressCompare" component={require('./src/screens/ProgressCompareScreen').default} options={{ presentation: 'fullScreenModal' }} />
       <Stack.Screen name="Sportprofil" component={SportprofilScreen} />
       <Stack.Screen name="Einstellungen" component={EinstellungenScreen} />
+      <Stack.Screen name="Legal" component={require('./src/screens/LegalScreen').default} />
       <Stack.Screen name="Konto" component={KontoScreen} />
       <Stack.Screen name="Household" component={HouseholdScreen} />
     </Stack.Navigator>
@@ -337,6 +339,16 @@ function AppContent() {
     const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url, navigationRef));
     return () => sub.remove();
   }, []);
+
+  // Auto-Sync verbundener Apps: beim Einloggen/Start + wenn die App in den
+  // Vordergrund kommt (z.B. direkt nach einer auf Strava beendeten Einheit).
+  useEffect(() => {
+    if (user) autoSyncConnectedApps();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') autoSyncConnectedApps();
+    });
+    return () => sub.remove();
+  }, [user?.id]);
 
   if (booting) {
     return (

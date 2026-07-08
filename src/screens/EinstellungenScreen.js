@@ -82,6 +82,7 @@ export default function EinstellungenScreen({ navigation }) {
 
   const [serverUrl, setServerUrl] = useState(getBaseUrl());
   const [urlSaved, setUrlSaved] = useState(false);
+  const [devTaps, setDevTaps] = useState(0); // 5× auf "Version" → Entwickler-Sektion
 
   const handleSaveUrl = () => {
     if (!serverUrl.trim()) {
@@ -245,21 +246,19 @@ export default function EinstellungenScreen({ navigation }) {
           />
         </SectionCard>
 
-        {/* Datenschutz */}
-        <SectionLabel title="Datenschutz" />
+        {/* Rechtliches */}
+        <SectionLabel title="Rechtliches" />
         <SectionCard>
           <SettingsRow
             icon="shield"
             label="Datenschutzerklärung"
-            onPress={() => Alert.alert(
-              'Datenschutz',
-              'keepr speichert deine Konto-, Ernährungs- und Trainingsdaten auf dem konfigurierten keepr-Server. ' +
-              'Sensible Zugangsdaten (Login-Token, API-Schlüssel) werden verschlüsselt im Schlüsselbund deines Geräts abgelegt.\n\n' +
-              'Für einzelne Funktionen werden Daten an Drittanbieter übermittelt:\n' +
-              '• KI-Funktionen (Rezepte, Plananalyse): Google Gemini\n' +
-              '• Trainings-Sync (optional, nur wenn verbunden): Strava, Intervals.icu, Oura\n\n' +
-              'Du kannst deine Daten jederzeit über „Alle Daten löschen" entfernen.'
-            )}
+            onPress={() => navigation.navigate('Legal', { type: 'privacy' })}
+          />
+          <Divider />
+          <SettingsRow
+            icon="file-text"
+            label="Nutzungsbedingungen"
+            onPress={() => navigation.navigate('Legal', { type: 'terms' })}
           />
           <Divider />
           <SettingsRow
@@ -271,7 +270,11 @@ export default function EinstellungenScreen({ navigation }) {
               'App-Daten liegen auf dem keepr-Server. Login-Token und verbundene API-Schlüssel werden zusätzlich verschlüsselt im Geräte-Schlüsselbund (iOS Keychain / Android Keystore) gespeichert.'
             )}
           />
-          <Divider />
+        </SectionCard>
+
+        {/* Konto & Daten */}
+        <SectionLabel title="Konto & Daten" />
+        <SectionCard>
           <SettingsRow
             icon="trash-2"
             label="Alle Daten löschen"
@@ -350,8 +353,9 @@ export default function EinstellungenScreen({ navigation }) {
           />
         </SectionCard>
 
-        {/* Verbindung / Server */}
-        <SectionLabel title="Verbindung" />
+        {/* Verbindung / Server — verstecktes Entwickler-Menü (5× auf "Version" tippen) */}
+        {devTaps >= 5 && (<>
+        <SectionLabel title="Verbindung (Entwickler)" />
         <SectionCard>
           <View style={{ paddingHorizontal: S.md, paddingTop: 12, paddingBottom: 4 }}>
             <Text style={{ color: C.textTertiary, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>SERVER-URL</Text>
@@ -389,11 +393,12 @@ export default function EinstellungenScreen({ navigation }) {
             onPress={handleResetUrl}
           />
         </SectionCard>
+        </>)}
 
         {/* Über keepr */}
         <SectionLabel title="Über keepr" />
         <SectionCard>
-          <SettingsRow icon="info" label="Version" value="1.0.0" chevron={false} />
+          <SettingsRow icon="info" label="Version" value="1.0.0" chevron={false} onPress={() => setDevTaps(t => t + 1)} />
           <Divider />
           <SettingsRow
             icon="code"

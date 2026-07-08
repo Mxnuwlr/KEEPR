@@ -11,7 +11,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, Modal,
 } from 'react-native';
 
 // Third-party
@@ -20,6 +20,7 @@ import { Feather } from '@expo/vector-icons';
 // Internal
 import { useStore } from '../store';
 import { useTheme } from '../theme';
+import { LegalBody } from './LegalScreen';
 
 const FEATURES = [
   { icon: 'activity', text: 'KI Trainingsplan' },
@@ -67,6 +68,8 @@ export default function AuthScreen() {
   const [displayName, setDisplayName] = useState('');
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [legalModal, setLegalModal] = useState(null); // null | 'privacy' | 'terms'
   const { login, register, loading } = useStore();
 
   const handleLogin = async () => {
@@ -78,6 +81,7 @@ export default function AuthScreen() {
   const handleRegister = async () => {
     if (!username.trim() || !password.trim()) return Alert.alert('Fehler', 'Username und Passwort erforderlich.');
     if (password.length < 8) return Alert.alert('Fehler', 'Passwort muss mindestens 8 Zeichen haben.');
+    if (!consent) return Alert.alert('Zustimmung erforderlich', 'Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung, um fortzufahren.');
     try { await register(username.trim(), password, displayName.trim() || username.trim(), householdName.trim() || `${username.trim()}s Haushalt`); }
     catch (e) { Alert.alert('Registrierung fehlgeschlagen', e.message); }
   };
@@ -161,8 +165,27 @@ export default function AuthScreen() {
             <InputField label="Anzeigename" value={displayName} onChange={setDisplayName} placeholder="Manuel" autoCapitalize="words" />
             <InputField label="Passwort" value={password} onChange={setPassword} placeholder="••••••••" secure />
             <InputField label="Haushalt Name (optional)" value={householdName} onChange={setHouseholdName} placeholder="Mein Haushalt" autoCapitalize="words" />
+
+            {/* Rechtliches: AGB-Zustimmung + Einwilligung Gesundheitsdaten (Art. 9 DSGVO) */}
             <TouchableOpacity
-              style={{ backgroundColor: C.accent, borderRadius: R.md, padding: 15, alignItems: 'center', marginTop: 6, opacity: loading ? 0.6 : 1 }}
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: S.sm }}
+              onPress={() => setConsent(!consent)}
+              activeOpacity={0.7}
+            >
+              <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: consent ? C.accent : C.borderStrong, backgroundColor: consent ? C.accent : 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                {consent && <Feather name="check" size={14} color={C.accentText} />}
+              </View>
+              <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 18 }]}>
+                Ich akzeptiere die{' '}
+                <Text style={{ color: C.text, fontWeight: '700', textDecorationLine: 'underline' }} onPress={() => setLegalModal('terms')}>Nutzungsbedingungen</Text>
+                {' '}und willige in die Verarbeitung meiner Gesundheitsdaten gemäß der{' '}
+                <Text style={{ color: C.text, fontWeight: '700', textDecorationLine: 'underline' }} onPress={() => setLegalModal('privacy')}>Datenschutzerklärung</Text>
+                {' '}ein.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{ backgroundColor: C.accent, borderRadius: R.md, padding: 15, alignItems: 'center', marginTop: 6, opacity: loading || !consent ? 0.6 : 1 }}
               onPress={handleRegister}
               disabled={loading}
             >
@@ -213,6 +236,21 @@ export default function AuthScreen() {
 
         <Text style={[T.caption, { color: C.textTertiary, textAlign: 'center', marginTop: S.lg }]}>keepr v1.0</Text>
       </ScrollView>
+
+      {/* Rechtstexte (vor Registrierung einsehbar, ohne Navigation) */}
+      <Modal visible={!!legalModal} animationType="slide" onRequestClose={() => setLegalModal(null)}>
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingTop: 60, paddingBottom: S.sm }}>
+            <Text style={[T.h3, { color: C.text }]}>Rechtliches</Text>
+            <TouchableOpacity onPress={() => setLegalModal(null)} hitSlop={8}>
+              <Feather name="x" size={22} color={C.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: S.md, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+            {legalModal ? <LegalBody type={legalModal} /> : null}
+          </ScrollView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

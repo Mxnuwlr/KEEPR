@@ -327,6 +327,28 @@ Scanner-Screens + Profil-Tab ans UI-Kit (`components/ui.js`) angeglichen — Nut
   „Letztes Check-in vor X", Sub-Row „Körper-Vergleich ansehen" wenn regionen vorhanden)
   → Mein Profil / Verbindungen / App (Abmelden als danger-Row in App-Sektion).
 
+## Rechtliches + Auto-Sync + Sportprofil-Konditionalität (2026-07-08) ERLEDIGT
+- **Rechtstexte:** `src/data/legal.js` (PRIVACY_SECTIONS/TERMS_SECTIONS, LEGAL_STAND —
+  Vorlage, vor Store-Launch anwaltlich prüfen). `src/screens/LegalScreen.js` (Route `Legal`,
+  param `{type:'privacy'|'terms'}`), exportiert `LegalBody` (nummerierte Abschnitte) —
+  wiederverwendet im AuthScreen-Consent-Modal.
+- **Registrierung:** Pflicht-Checkbox „Nutzungsbedingungen akzeptieren + Einwilligung
+  Gesundheitsdaten (Art. 9 DSGVO)" mit tappbaren Links (Modal, ohne Navigation, da vor Login).
+  handleRegister blockt ohne Consent.
+- **Einstellungen:** Sektion „Rechtliches" (Datenschutz/AGB → LegalScreen) + „Konto & Daten"
+  (destruktive Aktionen). **„Verbindung" (Server-URL) versteckt**: 5× auf „Version" tippen
+  → Entwickler-Sektion erscheint (devTaps-State).
+- **Auto-Sync** (`src/utils/autoSync.js`): `autoSyncConnectedApps()` synct Strava (Server),
+  Intervals.icu + Oura (Client, Keys aus Keychain) — still, Fehler je Dienst geschluckt,
+  Drosselung 10 min (`auto_sync_last`), FTP/maxHF-Auto-Übernahme wie manueller Sync.
+  Verdrahtet in App.js: bei Login/Start + AppState→'active' (App in Vordergrund = frisch
+  beendete Strava-Einheit wird sofort geholt). Hinweis-Banner in ConnectedAppsScreen.
+  Echte Push-Webhooks (Strava) bewusst NICHT — bräuchte Remote-Push (APNs, Paid-Account).
+- **Sportprofil konditional:** Sektionen richten sich nach gewählten Sportarten —
+  Kraft-Einstellungen (Volumen/Übungen) nur bei strength/hyrox/calisthenics; Leistungswerte
+  nur bei Ausdauer (FTP nur bike/tri, Schwimm-Pace nur swim/tri, Lauf-Pace nur run/tri/hyrox);
+  Bestleistungen nur run (5k–Marathon) bzw. swim (1 km).
+
 ## Emoji-freie UI (2026-07-01)
 Alle pictographischen Emojis aus der UI entfernt → durch Feather / MaterialCommunityIcons
 ersetzt (professioneller Look). Shared Helper `muscleIcon(group)` in `data/exercises.js`

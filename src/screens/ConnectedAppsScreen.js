@@ -573,9 +573,15 @@ export default function ConnectedAppsScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.tint} />}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[T.body, { color: C.textSecondary, marginBottom: S.lg }]}>
+        <Text style={[T.body, { color: C.textSecondary, marginBottom: S.sm }]}>
           Synchronisiere deine Trainingsdaten mit externen Apps.
         </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, borderRadius: R.md, padding: 12, marginBottom: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+          <Feather name="refresh-cw" size={14} color={C.success} />
+          <Text style={[T.caption, { color: C.textSecondary, flex: 1, lineHeight: 17 }]}>
+            Auto-Sync aktiv: Verbundene Apps werden beim Öffnen von keepr automatisch synchronisiert — frisch abgeschlossene Einheiten sind sofort da.
+          </Text>
+        </View>
 
         {/* ── Verfügbare Integrationen ── */}
         <View style={{ gap: S.sm }}>
