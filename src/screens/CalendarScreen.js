@@ -27,6 +27,7 @@ import { useTheme } from '../theme';
 import ActivityLogModal from '../components/ActivityLogModal';
 import WeeklyReviewModal from '../components/WeeklyReviewModal';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
+import RouteMap from '../components/RouteMap';
 import { getSessionSteps } from '../utils/workoutStructure';
 
 const DAYS_SHORT = ['Mo','Di','Mi','Do','Fr','Sa','So'];
@@ -213,9 +214,20 @@ function SessionPreviewModal({ visible, session, onClose, onComplete }) {
   );
 }
 
-function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCaloriePress, onTrainingPress, onAddActivity }) {
+function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDeleted, onCaloriePress, onTrainingPress, onAddActivity }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const [previewSession, setPreviewSession] = useState(null);
+  // Tage außerhalb der geladenen Woche (z.B. Monatsansicht): Daten selbst nachladen
+  const [fetchedData, setFetchedData] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setFetchedData(null);
+    if (visible && date && !dayDataProp) {
+      api.getCalendarDay(date).then(dd => { if (alive) setFetchedData(dd); }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [visible, date, dayDataProp]);
+  const dayData = dayDataProp || fetchedData;
   if (!date) return null;
   const d = new Date(date+'T12:00:00');
   const workouts = dayData?.training?.completedAll?.length > 0
@@ -391,6 +403,14 @@ function DayDetailModal({ visible, date, dayData, onClose, onDeleted, onCalorieP
                   <Feather name="x" size={22} color={C.textSecondary} />
                 </TouchableOpacity>
               </View>
+
+              {/* Strecken-Karte (GPS-Route) */}
+              {isCompleted && Array.isArray(done.route) && done.route.length > 1 && (
+                <View style={{ marginBottom: S.lg }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Strecke</Text>
+                  <RouteMap route={done.route} height={200} color={sc} />
+                </View>
+              )}
 
               {/* Ergebnis-Werte (erledigte Einheit) */}
               {stats.length > 0 && (
