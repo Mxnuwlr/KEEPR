@@ -155,7 +155,7 @@ const APPS = [
   {
     key: 'intervals',
     name: 'Intervals.icu',
-    description: 'Trainingsbelastung (CTL/ATL/TSB) + Aktivitäten der letzten 30 Tage',
+    description: 'Aktivitäten-Import (auch Garmin!) + Trainingsbelastung (CTL/ATL/TSB)',
     color: '#5856D6',
     authType: 'apikey',
     available: true,
@@ -477,7 +477,7 @@ export default function ConnectedAppsScreen({ navigation }) {
       const autoNote = Object.keys(profUpdates).length
         ? `\nAuto-aktualisiert: ${[profUpdates.ftp && `FTP ${profUpdates.ftp}W`, profUpdates.maxHr && `maxHF ${profUpdates.maxHr}`].filter(Boolean).join(' · ')}`
         : '';
-      Alert.alert('Sync abgeschlossen', `${data.activityCount} Aktivitäten importiert.${data.ctl != null ? `\nCTL: ${Math.round(data.ctl)} | ATL: ${Math.round(data.atl)} | TSB: ${Math.round(data.tsb)}` : ''}${autoNote}`);
+      Alert.alert('Sync abgeschlossen', `${data.activityCount} Aktivitäten geladen, ${data.imported || 0} neu als Einheiten importiert.${data.ctl != null ? `\nCTL: ${Math.round(data.ctl)} | ATL: ${Math.round(data.atl)} | TSB: ${Math.round(data.tsb)}` : ''}${autoNote}`);
     } catch (e) { Alert.alert('Sync Fehler', e.message); }
     finally { setSyncing(null); }
   };

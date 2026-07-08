@@ -203,6 +203,8 @@ export const api = {
   // KI-Athleten-Analyse: prueft Profil gegen echte Leistung, passt es serverseitig an
   analyzeAthlete: () => request('POST', '/api/athlete/analyze', {}),
   getAthleteInsight: () => request('GET', '/api/athlete/insight'),
+  // Aktivitaeten-Import (z.B. intervals.icu — Garmin-Daten ohne Strava-Abo)
+  importWorkouts: (source, workouts) => request('POST', '/api/workouts/import', { source, workouts }),
 
   // Avatar
   uploadAvatar: async (imageUri) => {
@@ -298,6 +300,62 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   const ftpVals = acts.map(a => a.icu_eftp ?? a.icu_ftp).filter(v => typeof v === 'number' && v > 50 && v < 600);
   const estFtp = ftpVals.length ? Math.max(...ftpVals) : null;
 
+  // ── Voll-Import: Aktivitäten als Einheiten nach keepr übernehmen ──
+  // (Garmin → intervals.icu → keepr; ersetzt den Strava-Import ohne Abo-Zwang)
+  const sorted = acts.slice().sort((a, b) => String(b.start_date_local || '').localeCompare(String(a.start_date_local || '')));
+  // Intervalle/Runden für die neuesten Einheiten (letzte 7 Tage, max. 8 Abrufe)
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const lapsMap = {};
+  await Promise.all(
+    sorted.filter(a => String(a.start_date_local || '').slice(0, 10) >= weekAgo).slice(0, 8).map(async (a) => {
+      try {
+        const r = await fetch(`https://intervals.icu/api/v1/activity/${a.id}/intervals`, { headers });
+        if (r.ok) {
+          const d = await r.json();
+          const ivs = Array.isArray(d?.icu_intervals) ? d.icu_intervals : (Array.isArray(d) ? d : null);
+          if (ivs && ivs.length > 1) lapsMap[a.id] = ivs;
+        }
+      } catch (e) {}
+    })
+  );
+  const TYPE_MAP = { Ride: 'bike', VirtualRide: 'bike', Run: 'run', VirtualRun: 'run', Swim: 'swim', OpenWaterSwim: 'swim', WeightTraining: 'strength', Workout: 'strength', Walk: 'mobility', Hike: 'hike', Rowing: 'row', Yoga: 'mobility' };
+  const workouts = sorted.map(a => ({
+    externalId: String(a.id),
+    date: String(a.start_date_local || '').slice(0, 10),
+    name: a.name || a.type || 'Aktivität',
+    sportType: TYPE_MAP[a.type] || 'other',
+    durationMin: Math.round((a.moving_time || a.elapsed_time || 0) / 60),
+    summary: {
+      focus: a.name || a.type,
+      distance: a.distance || null,
+      moving_time_s: a.moving_time || null,
+      avg_hr: a.average_heartrate ? Math.round(a.average_heartrate) : null,
+      max_hr: a.max_heartrate ? Math.round(a.max_heartrate) : null,
+      avg_speed_kmh: a.average_speed ? +(a.average_speed * 3.6).toFixed(1) : null,
+      avg_watts: a.icu_average_watts || a.average_watts ? Math.round(a.icu_average_watts || a.average_watts) : null,
+      weighted_watts: a.icu_weighted_avg_watts ? Math.round(a.icu_weighted_avg_watts) : null,
+      elevation_gain_m: a.total_elevation_gain ? Math.round(a.total_elevation_gain) : null,
+      calories: a.calories ? Math.round(a.calories) : null,
+      training_load: a.icu_training_load || null,
+      laps: lapsMap[a.id] ? lapsMap[a.id].slice(0, 40).map(iv => ({
+        typ: iv.type || null,
+        zeit_s: iv.moving_time || iv.elapsed_time || null,
+        distanz_m: iv.distance ? Math.round(iv.distance) : null,
+        avg_hr: iv.average_heartrate ? Math.round(iv.average_heartrate) : null,
+        avg_watts: iv.average_watts ? Math.round(iv.average_watts) : null,
+      })) : null,
+    },
+  })).filter(w => w.date && w.durationMin > 0);
+
+  let imported = 0, importedActivities = [];
+  if (workouts.length) {
+    try {
+      const importRes = await api.importWorkouts('intervals', workouts);
+      imported = importRes?.imported || 0;
+      importedActivities = importRes?.activities || [];
+    } catch (e) {}
+  }
+
   return {
     activityCount: Array.isArray(activities) ? activities.length : 0,
     activities: acts.slice(0, 10),
@@ -306,6 +364,8 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
     ctl: latestWellness?.ctl ?? null,
     atl: latestWellness?.atl ?? null,
     tsb: latestWellness?.tsb ?? null,
+    imported,
+    importedActivities,
     syncedAt: new Date().toISOString(),
   };
 }

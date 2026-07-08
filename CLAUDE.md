@@ -376,6 +376,24 @@ sich selbst, Plan rudert bei Überlastung zurück — alles transparent kommuniz
   `notifyNow(title, body)` in notifications.js. **TrainingScreen:** „DEIN KI-COACH"-Karte
   (Nachricht, Belastungs-Badge, „Automatisch angepasst: …").
 
+## Strava inaktiv → intervals.icu-Voll-Import (2026-07-08) ERLEDIGT
+**Strava-API seit 30.06.2026 deaktiviert** (`Application Status: Inactive`, Client-ID 182009) —
+Entwickler-Abo-Pflicht, Nutzer will NICHT zahlen. Verifiziert: selbst der persönliche Token
+von strava.com/settings/api bekommt 403. Sync-Endpoint gibt jetzt klare Meldung statt 500.
+- **Kostenloser Ersatzweg: Garmin → intervals.icu → keepr** (Garmin ist mit Nutzers Strava/
+  intervals verbindbar; intervals.icu-API ist gratis).
+- Backend `POST /api/workouts/import` `{source, workouts:[{externalId,date,name,sportType,
+  durationMin,summary}]}` → completed_workouts; Dedupe via Tag `[intervals:<id>]` in notes
+  UND Fuzzy (gleicher Tag+Sportart, Dauer ±3 min — verhindert Doppel mit Alt-Strava-Importen).
+  Getestet (Wegwerf-User): Import 1, Re-Post 0.
+- Client `syncIntervalsIcu`: normalisiert ALLE Aktivitäten (30 Tage) inkl. HF/Watt/NP/Speed/
+  Höhenmeter/Kalorien/training_load + **Intervalle/Runden** (`/activity/:id/intervals`, letzte
+  7 Tage, max. 8 Abrufe) → `api.importWorkouts('intervals', …)`. Rückgabe +`imported`/
+  `importedActivities`. autoSync: zählt intervals-Importe wie Strava → Notification +
+  KI-Athleten-Analyse. ConnectedApps: Beschreibung + Sync-Alert erwähnen Import.
+- Nutzer-Setup nötig: intervals.icu-Konto → Garmin dort verbinden → Athlete-ID + API-Key
+  in keepr eintragen.
+
 ## Emoji-freie UI (2026-07-01)
 Alle pictographischen Emojis aus der UI entfernt → durch Feather / MaterialCommunityIcons
 ersetzt (professioneller Look). Shared Helper `muscleIcon(group)` in `data/exercises.js`

@@ -47,13 +47,18 @@ export async function autoSyncConnectedApps({ force = false } = {}) {
       stravaActivities = r?.activities || [];
     } catch (e) {}
 
-    // Intervals.icu — direkt vom Client (Key liegt im Keychain)
+    // Intervals.icu — direkt vom Client (Key liegt im Keychain);
+    // importiert Aktivitäten (z.B. von Garmin) auch als Einheiten nach keepr
     try {
       const raw = await getSecureItem('connected_intervals_credentials');
       if (raw) {
         const c = JSON.parse(raw);
         const data = await syncIntervalsIcu(c.athleteId, c.apiKey);
         await st.setExternalData('intervals', data);
+        if (data.imported > 0) {
+          results.intervalsImported = data.imported;
+          stravaActivities = stravaActivities.concat(data.importedActivities || []);
+        }
         // FTP / maxHF automatisch übernehmen (gleiche Logik wie manueller Sync)
         const u = useStore.getState().user || {};
         const upd = {};
@@ -75,12 +80,13 @@ export async function autoSyncConnectedApps({ force = false } = {}) {
     } catch (e) {}
 
     // Neue Einheiten importiert → Benachrichtigung + KI-Coach analysiert sofort
-    if (results.strava > 0) {
+    const newCount = (results.strava || 0) + (results.intervalsImported || 0);
+    if (newCount > 0) {
       const names = stravaActivities.slice(0, 3)
         .map(a => `${a.name}${a.distanceKm ? ` (${a.distanceKm} km)` : ''}`)
         .join(', ');
       notifyNow(
-        results.strava === 1 ? 'Neue Einheit von Strava' : `${results.strava} neue Einheiten von Strava`,
+        newCount === 1 ? 'Neue Einheit importiert' : `${newCount} neue Einheiten importiert`,
         `${names}${stravaActivities.length > 3 ? ' …' : ''} — dein KI-Coach analysiert die Leistung.`
       );
       try {
