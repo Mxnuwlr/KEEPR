@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Modal, RefreshControl, Alert,
+  ActivityIndicator, Modal, RefreshControl, Alert, Dimensions,
 } from 'react-native';
 
 // Third-party
@@ -28,6 +28,7 @@ import ActivityLogModal from '../components/ActivityLogModal';
 import WeeklyReviewModal from '../components/WeeklyReviewModal';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
 import RouteMap from '../components/RouteMap';
+import RouteMapTiles from '../components/RouteMapTiles';
 import ActivityDetail from '../components/ActivityDetail';
 import { getSessionSteps } from '../utils/workoutStructure';
 
@@ -282,6 +283,11 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
                     </View>
                   ) : null}
                 </View>
+                {Array.isArray(workout.exercisesCompleted?.route) && workout.exercisesCompleted.route.length > 1 && (
+                  <View style={{ marginBottom: S.md, borderRadius: R.md, overflow: 'hidden' }}>
+                    <RouteMapTiles route={workout.exercisesCompleted.route} width={Dimensions.get('window').width - S.lg * 2 - S.md * 2} height={130} color="#FC4C02" />
+                  </View>
+                )}
                 <View style={{ flexDirection: 'row', gap: S.sm, flexWrap: 'wrap' }}>
                   {workout.duration_minutes ? <StatPill label="Dauer" value={`${workout.duration_minutes} Min`} /> : null}
                   {workout.distance ? <StatPill label="Distanz" value={`${workout.distance} km`} /> : null}

@@ -97,7 +97,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
 
       {/* Feste interaktive Karte oben (zoomen/verschieben ohne Scroll-Konflikt) */}
       {hasRoute ? (
-        <ActivityMap ref={mapRef} route={done.route} color={sc} height={300} />
+        <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" height={300} />
       ) : (
         <View style={{ height: 90 }} />
       )}

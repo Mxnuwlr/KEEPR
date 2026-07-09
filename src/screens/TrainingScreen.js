@@ -37,6 +37,7 @@ import { weakestZones } from '../data/mobility';
 import { getSessionSteps } from '../utils/workoutStructure';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
 import ActivityDetail from '../components/ActivityDetail';
+import RouteMapTiles from '../components/RouteMapTiles';
 import { getSportMci } from '../data/sports';
 
 const DAYS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
@@ -1625,6 +1626,9 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                             <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{w.focus || w.title || 'Einheit'}</Text>
                             <Text style={[T.caption, { color: C.textTertiary }]}>{dateStr}{meta ? ` · ${meta}` : ''}</Text>
                           </View>
+                          {Array.isArray(done.route) && done.route.length > 1 ? (
+                            <RouteMapTiles route={done.route} width={56} height={56} color="#FC4C02" showAttribution={false} />
+                          ) : null}
                           <Feather name="chevron-right" size={16} color={C.textTertiary} />
                         </TouchableOpacity>
                       );

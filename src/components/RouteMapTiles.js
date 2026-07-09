@@ -29,7 +29,9 @@ const latToTileY = (lat, z) => {
   return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * Math.pow(2, z);
 };
 
-export default function RouteMapTiles({ route, width, height = 220, color = '#FC4C02' }) {
+const TILE_URL = (z, x, y) => `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+
+export default function RouteMapTiles({ route, width, height = 220, color = '#FC4C02', showAttribution = true }) {
   const { colors: C, radius: R } = useTheme();
   if (!Array.isArray(route) || route.length < 2 || !width) return null;
 
@@ -79,7 +81,7 @@ export default function RouteMapTiles({ route, width, height = 220, color = '#FC
       tiles.push(
         <Image
           key={`${tx}_${ty}`}
-          source={{ uri: `https://tile.openstreetmap.org/${zoom}/${wx}/${ty}.png` }}
+          source={{ uri: TILE_URL(zoom, wx, ty) }}
           style={{ position: 'absolute', left: (tx * TILE - originX) * s + offX, top: (ty * TILE - originY) * s, width: TILE * s, height: TILE * s }}
         />
       );
@@ -94,9 +96,11 @@ export default function RouteMapTiles({ route, width, height = 220, color = '#FC
         <Circle cx={sx} cy={sy} r={6} fill="#22C55E" stroke="#fff" strokeWidth={2} />
         <Circle cx={ex} cy={ey} r={6} fill="#EF4444" stroke="#fff" strokeWidth={2} />
       </Svg>
-      <Text style={{ position: 'absolute', right: 4, bottom: 2, fontSize: 8, color: '#000', opacity: 0.5, backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 3, borderRadius: 2 }}>
-        © OpenStreetMap
-      </Text>
+      {showAttribution && (
+        <Text style={{ position: 'absolute', right: 4, bottom: 2, fontSize: 8, color: '#000', opacity: 0.45, backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 3, borderRadius: 2 }}>
+          © CARTO © OSM
+        </Text>
+      )}
     </View>
   );
 }

@@ -27,8 +27,8 @@ const buildHtml = (route, color) => {
 </head><body><div id="m"></div><script>
 var pts=${pts};
 var map=L.map('m',{zoomControl:true,attributionControl:true}).setView(pts[0],13);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-var line=L.polyline(pts,{color:'${color}',weight:4,opacity:0.9}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+var line=L.polyline(pts,{color:'${color}',weight:5,opacity:0.95}).addTo(map);
 map.fitBounds(line.getBounds(),{padding:[24,24]});
 L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#22C55E',fillOpacity:1}).addTo(map);
 L.circleMarker(pts[pts.length-1],{radius:6,color:'#fff',weight:2,fillColor:'#EF4444',fillOpacity:1}).addTo(map);
