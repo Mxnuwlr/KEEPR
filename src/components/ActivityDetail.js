@@ -61,7 +61,12 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const [layerModal, setLayerModal] = useState(false);
   const [flying, setFlying] = useState(false);
 
-  const snapTo = (val) => { curY.current = val; Animated.spring(sheetY, { toValue: val, useNativeDriver: true, bounciness: 2, speed: 16 }).start(); };
+  const snapTo = (val) => {
+    curY.current = val;
+    Animated.spring(sheetY, { toValue: val, useNativeDriver: true, bounciness: 2, speed: 16 }).start();
+    // Route im sichtbaren (nicht vom Blatt verdeckten) Bereich neu zentrieren
+    setTimeout(() => mapRef.current?.recenter(screenH - val), 260);
+  };
   const nearest = (v) => [SNAP.top, SNAP.mid, SNAP.low].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 
   const pan = useRef(PanResponder.create({
@@ -134,9 +139,8 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const toggleFly = () => {
     const next = !flying;
     setFlying(next);
-    if (next) snapTo(SNAP.low); // Blatt runter → ganze Karte frei für die Animation
-    // kurz warten, bis die Karte frei ist, dann Route einpassen + abfahren
-    setTimeout(() => { mapRef.current?.recenter(); mapRef.current?.flyover(); }, next ? 320 : 0);
+    if (next) snapTo(SNAP.low); // Blatt runter → Karte frei für die Animation
+    setTimeout(() => { mapRef.current?.recenter(screenH - SNAP.low); mapRef.current?.flyover(); }, next ? 340 : 0);
   };
 
   const MapBtn = ({ icon, onPress, active }) => (
@@ -150,7 +154,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
       {/* Vollbild-Karte im Hintergrund */}
       {hasRoute && (
         <View style={StyleSheet.absoluteFill}>
-          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={base} />
+          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={base} bottomPad={screenH - SNAP.mid} />
         </View>
       )}
 

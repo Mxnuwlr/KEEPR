@@ -19,7 +19,7 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-const buildHtml = (route, color, layer) => {
+const buildHtml = (route, color, layer, bottomPad) => {
   const pts = JSON.stringify(route);
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -53,7 +53,12 @@ function applyLayers(base, ovs){
 }
 applyLayers('${layer}', []);
 line.addTo(map);
-map.fitBounds(line.getBounds(),{padding:[26,26]});
+var BP=${Math.round(bottomPad || 0)};
+function recenter(bp){
+  if(bp==null||bp<0)bp=BP;
+  map.fitBounds(line.getBounds(),{paddingTopLeft:[26,80],paddingBottomRight:[26,bp+26]});
+}
+recenter();
 L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#22C55E',fillOpacity:1}).addTo(map);
 L.circleMarker(pts[pts.length-1],{radius:6,color:'#fff',weight:2,fillColor:'#EF4444',fillOpacity:1}).addTo(map);
 var cursor=null;
@@ -68,18 +73,15 @@ var flyTimer=null;
 function flyover(){
   if(flyTimer){clearInterval(flyTimer);flyTimer=null;if(cursor){map.removeLayer(cursor);cursor=null;}return;}
   var i=0, step=Math.max(1,Math.round(pts.length/200));
-  // Gesamte Route im Blick behalten (kein Herumspringen), nur den Marker abfahren
-  map.fitBounds(line.getBounds(),{padding:[30,30]});
   flyTimer=setInterval(function(){
     if(i>=pts.length){showAt(1);clearInterval(flyTimer);flyTimer=null;return;}
     showAt(i/(pts.length-1)); i+=step;
   },60);
 }
-function recenter(){map.fitBounds(line.getBounds(),{padding:[26,26]});}
 </script></body></html>`;
 };
 
-const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit' }, ref) => {
+const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit', bottomPad = 0 }, ref) => {
   const webRef = useRef(null);
   const inject = (js) => { try { webRef.current?.injectJavaScript(js + ';true;'); } catch (e) {} };
   useImperativeHandle(ref, () => ({
@@ -87,7 +89,7 @@ const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit' }
     hide: () => inject(`showAt(-1)`),
     applyLayers: (base, ovs) => inject(`applyLayers(${JSON.stringify(base)}, ${JSON.stringify(ovs || [])})`),
     flyover: () => inject(`flyover()`),
-    recenter: () => inject(`recenter()`),
+    recenter: (bp) => inject(`recenter(${bp == null ? 'null' : Math.round(bp)})`),
   }));
 
   if (!Array.isArray(route) || route.length < 2) return null;
@@ -97,7 +99,7 @@ const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit' }
       <WebView
         ref={webRef}
         originWhitelist={['*']}
-        source={{ html: buildHtml(route, color, layer) }}
+        source={{ html: buildHtml(route, color, layer, bottomPad) }}
         style={{ flex: 1, backgroundColor: '#0f0e0c' }}
         scrollEnabled={false}
         javaScriptEnabled

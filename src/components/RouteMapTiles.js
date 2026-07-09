@@ -54,46 +54,48 @@ export default function RouteMapTiles({ route, width, height = 180, color = '#FC
   }
 
   const n = Math.pow(2, zoom);
-  const txMin = lngToTileX(minLng, zoom), txMax = lngToTileX(maxLng, zoom);
-  const tyMin = latToTileY(maxLat, zoom), tyMax = latToTileY(minLat, zoom);
-  const pad = 0.28;
-  const startTX = Math.floor(txMin - pad), endTX = Math.ceil(txMax + pad);
-  const startTY = Math.floor(tyMin - pad), endTY = Math.ceil(tyMax + pad);
-  const tilesW = endTX - startTX, tilesH = endTY - startTY;
+  // Route-Bounding-Box in Welt-Pixeln bei diesem Zoom
+  const pxMin = lngToTileX(minLng, zoom) * TILE, pxMax = lngToTileX(maxLng, zoom) * TILE;
+  const pyMin = latToTileY(maxLat, zoom) * TILE, pyMax = latToTileY(minLat, zoom) * TILE;
+  const pcx = (pxMin + pxMax) / 2, pcy = (pyMin + pyMax) / 2;
+  const routeW = Math.max(pxMax - pxMin, 1), routeH = Math.max(pyMax - pyMin, 1);
+  // Contain: ganze Route passt rein (mit Rand). Der Rest der Fläche wird mit
+  // Kacheln gefüllt (nicht grau) → volle Breite/Höhe, Strecke zentriert.
+  const PADF = 1.2;
+  const s = Math.min(width / (routeW * PADF), height / (routeH * PADF));
+  const X = (px) => (px - pcx) * s + width / 2;
+  const Y = (py) => (py - pcy) * s + height / 2;
 
-  const s = Math.min(width / (tilesW * TILE), height / (tilesH * TILE));
-  const dispH = Math.min(height, tilesH * TILE * s);
-  const dispW = tilesW * TILE * s;
-  const offX = (width - dispW) / 2;
-  const offY = (dispH - tilesH * TILE * s) / 2;
-
-  const originX = startTX * TILE, originY = startTY * TILE;
-  const toPx = ([lat, lng]) => [
-    (lngToTileX(lng, zoom) * TILE - originX) * s + offX,
-    (latToTileY(lat, zoom) * TILE - originY) * s + offY,
-  ];
-  const pts = route.map(toPx);
+  const pts = route.map(([lat, lng]) => [X(lngToTileX(lng, zoom) * TILE), Y(latToTileY(lat, zoom) * TILE)]);
   const ptsStr = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const [sx, sy] = pts[0];
   const [ex, ey] = pts[pts.length - 1];
+
+  // Kachel-Bereich, der die ganze Fläche [0,width]×[0,height] abdeckt
+  const txL = Math.floor((pcx + (0 - width / 2) / s) / TILE);
+  const txR = Math.ceil((pcx + (width - width / 2) / s) / TILE);
+  const tyL = Math.floor((pcy + (0 - height / 2) / s) / TILE);
+  const tyR = Math.ceil((pcy + (height - height / 2) / s) / TILE);
 
   const layers = TILE_LAYERS[variant] || TILE_LAYERS.voyager;
   const tiles = [];
   for (let li = 0; li < layers.length; li++) {
     const url = layers[li];
-    for (let tx = startTX; tx < endTX; tx++) {
-      for (let ty = startTY; ty < endTY; ty++) {
+    for (let tx = txL; tx < txR; tx++) {
+      for (let ty = tyL; ty < tyR; ty++) {
+        if (ty < 0 || ty >= n) continue;
         const wx = ((tx % n) + n) % n;
         tiles.push(
           <Image
             key={`${li}_${tx}_${ty}`}
             source={{ uri: url(zoom, wx, ty) }}
-            style={{ position: 'absolute', left: (tx * TILE - originX) * s + offX, top: (ty * TILE - originY) * s + offY, width: TILE * s, height: TILE * s }}
+            style={{ position: 'absolute', left: X(tx * TILE), top: Y(ty * TILE), width: TILE * s, height: TILE * s }}
           />
         );
       }
     }
   }
+  const dispH = height;
 
   // Animierter Flyover-Marker
   let mk = null;
