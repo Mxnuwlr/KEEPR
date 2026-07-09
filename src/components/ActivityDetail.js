@@ -188,7 +188,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
           {hasRoute && <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.borderStrong }} />}
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
           {/* Titel + Meta */}
           <View style={{ paddingHorizontal: S.lg, paddingTop: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -231,6 +231,28 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
               </View>
             </View>
           ))}
+
+          {/* Intervall-Balkenprofil (wie bei geplanten Einheiten) */}
+          {Array.isArray(done.laps) && done.laps.length > 1 && (() => {
+            const metric = (lp) => lp.avg_watts || lp.avg_hr || (lp.distanz_m && lp.zeit_s ? lp.distanz_m / lp.zeit_s : 0) || 0;
+            const maxM = Math.max(...done.laps.map(metric), 1);
+            const totT = done.laps.reduce((a, lp) => a + (lp.zeit_s || 1), 0) || 1;
+            const unit = done.laps.some(l => l.avg_watts) ? 'W' : done.laps.some(l => l.avg_hr) ? 'bpm' : '';
+            return (
+              <View style={{ marginTop: S.xl, paddingHorizontal: S.lg }}>
+                <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>Intervalle</Text>
+                <View style={{ height: 90, flexDirection: 'row', alignItems: 'flex-end', gap: 2, backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                  {done.laps.slice(0, 60).map((lp, i) => {
+                    const hPct = Math.max(0.08, metric(lp) / maxM);
+                    const wPct = Math.max(0.5, ((lp.zeit_s || 1) / totT) * 100);
+                    const isWork = lp.typ === 'WORK' || metric(lp) > maxM * 0.7;
+                    return <View key={i} style={{ flexGrow: wPct, height: `${hPct * 100}%`, backgroundColor: isWork ? '#FC4C02' : sc + '99', borderRadius: 2 }} />;
+                  })}
+                </View>
+                <Text style={[T.caption, { color: C.textTertiary, marginTop: 4 }]}>{done.laps.length} Intervalle{unit ? ` · Balkenhöhe = ${unit === 'W' ? 'Leistung' : 'Puls'}` : ''}</Text>
+              </View>
+            );
+          })()}
 
           {/* Runden / Splits */}
           {laps.length > 1 && (

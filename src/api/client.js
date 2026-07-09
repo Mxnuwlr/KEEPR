@@ -298,6 +298,20 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   // Letzter Wellness-Eintrag für CTL/ATL/TSB
   const latestWellness = Array.isArray(wellness) && wellness.length > 0 ? wellness[wellness.length - 1] : null;
 
+  // Gesundheitsdaten (Garmin → intervals.icu): jüngsten Tag mit echten Werten nehmen
+  const wArr = Array.isArray(wellness) ? wellness : [];
+  const lastWith = (key) => { for (let i = wArr.length - 1; i >= 0; i--) if (wArr[i]?.[key] != null) return wArr[i][key]; return null; };
+  const sleepSecs = lastWith('sleepSecs');
+  const health = {
+    restingHr: lastWith('restingHR'),
+    hrv: lastWith('hrv'),
+    sleepHours: sleepSecs != null ? +(sleepSecs / 3600).toFixed(1) : null,
+    sleepScore: lastWith('sleepScore'),
+    steps: lastWith('steps'),
+    vo2max: lastWith('vo2max'),
+    weight: lastWith('weight'),
+  };
+
   // Auto-Schätzung FTP + maxHF aus den Aktivitäten (best-effort, falls Felder vorhanden)
   const acts = Array.isArray(activities) ? activities : [];
   // Strava-Quelle: intervals.icu darf diese Aktivitäten NICHT über die API weitergeben
@@ -413,6 +427,8 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
     ctl: latestWellness?.ctl ?? null,
     atl: latestWellness?.atl ?? null,
     tsb: latestWellness?.tsb ?? null,
+    // Gesundheitsdaten von Garmin über intervals.icu
+    ...health,
     imported,
     importedActivities,
     stravaLocked,

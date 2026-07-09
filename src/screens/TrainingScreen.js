@@ -1010,8 +1010,18 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
     sessionsByDay[i] = trainingPlan?.sessions?.filter(s => s.day_index === i) || [];
   }
 
+  // Abgeschlossene Einheiten nach Wochentag (erscheinen am jeweiligen Tag, nicht separat)
+  const completedByDay = {};
+  for (const w of (trainingPlan?.completedWorkouts || [])) {
+    let di = w.day_index;
+    if (di == null) { try { di = (new Date((w.date) + 'T12:00:00').getDay() + 6) % 7; } catch (e) {} }
+    if (di == null) continue;
+    (completedByDay[di] = completedByDay[di] || []).push(w);
+  }
+
   const isWorkoutDone = (dayIndex) => {
     if (completedMap[`day_${dayIndex}`]) return true;
+    if ((completedByDay[dayIndex] || []).length > 0) return true;
     const days = sessionsByDay[dayIndex] || [];
     const trainSessions = days.filter(s => !s.is_rest);
     if (trainSessions.length === 0) return false;
@@ -1404,11 +1414,24 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
             </ScrollView>
 
             {/* Day detail */}
-            {daySessions.length > 0 && (
+            {(daySessions.length > 0 || (completedByDay[selectedDay] || []).length > 0) && (
               <View>
                 <Text style={[T.h3, { color: C.text, marginBottom: S.md }]}>{DAYS[selectedDay]}</Text>
 
-                {(daySessions.length === 0 || daySessions.every(s => s.is_rest)) ? (
+                {/* Absolvierte Einheiten dieses Tages (Strava-Feed-Karten) */}
+                {(completedByDay[selectedDay] || []).length > 0 && (
+                  <View style={{ marginBottom: S.lg, gap: S.md }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Feather name="check-circle" size={15} color={C.success} />
+                      <Text style={[T.label, { color: C.success, textTransform: 'uppercase' }]}>Absolviert</Text>
+                    </View>
+                    {(completedByDay[selectedDay] || []).map((w, ci) => (
+                      <ActivityCard key={w.id || ci} workout={w} width={Dimensions.get('window').width - S.md * 2} onPress={() => setDetailWorkout(w)} />
+                    ))}
+                  </View>
+                )}
+
+                {(daySessions.length === 0 || daySessions.every(s => s.is_rest)) && !(completedByDay[selectedDay] || []).length ? (
                   <View style={{ backgroundColor: C.surface, borderRadius: R.xl, padding: S.xl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, marginBottom: S.md }}>
                     <Feather name="moon" size={38} color={C.textTertiary} style={{ marginBottom: S.md }} />
                     <Text style={[T.h3, { color: C.text }]}>Ruhetag</Text>
@@ -1598,21 +1621,7 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               })}
             </View>
 
-            {/* Diese Woche absolviert (Strava-Feed-Karten) */}
-            {Array.isArray(trainingPlan.completedWorkouts) && trainingPlan.completedWorkouts.length > 0 && (() => {
-              const acts = trainingPlan.completedWorkouts
-                .slice()
-                .sort((a, b) => String(b.completed_at || b.date).localeCompare(String(a.completed_at || a.date)));
-              const cardW = Dimensions.get('window').width - S.md * 2;
-              return (
-                <View style={{ marginTop: S.xl, gap: S.md }}>
-                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase' }]}>Diese Woche absolviert</Text>
-                  {acts.map((w, i) => (
-                    <ActivityCard key={w.id || i} workout={w} width={cardW} onPress={() => setDetailWorkout(w)} />
-                  ))}
-                </View>
-              );
-            })()}
+            {/* (Abgeschlossene Einheiten erscheinen jetzt am jeweiligen Tag oben im Tages-Detail) */}
           </Animated.View>
         )}
       </ScrollView>
