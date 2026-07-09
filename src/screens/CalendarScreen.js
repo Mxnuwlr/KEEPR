@@ -285,7 +285,7 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
                 </View>
                 {Array.isArray(workout.exercisesCompleted?.route) && workout.exercisesCompleted.route.length > 1 && (
                   <View style={{ marginBottom: S.md, borderRadius: R.md, overflow: 'hidden' }}>
-                    <RouteMapTiles route={workout.exercisesCompleted.route} width={Dimensions.get('window').width - S.lg * 2 - S.md * 2} height={130} color="#FC4C02" />
+                    <RouteMapTiles route={workout.exercisesCompleted.route} width={Dimensions.get('window').width - S.lg * 2 - S.md * 2} height={140} color="#FC4C02" variant="hybrid" />
                   </View>
                 )}
                 <View style={{ flexDirection: 'row', gap: S.sm, flexWrap: 'wrap' }}>

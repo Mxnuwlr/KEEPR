@@ -18,7 +18,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView,
-  Platform, Animated,
+  Platform, Animated, Dimensions,
 } from 'react-native';
 
 // Third-party
@@ -37,7 +37,7 @@ import { weakestZones } from '../data/mobility';
 import { getSessionSteps } from '../utils/workoutStructure';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
 import ActivityDetail from '../components/ActivityDetail';
-import RouteMapTiles from '../components/RouteMapTiles';
+import ActivityCard from '../components/ActivityCard';
 import { getSportMci } from '../data/sports';
 
 const DAYS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
@@ -1598,42 +1598,18 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
               })}
             </View>
 
-            {/* Diese Woche absolviert (importierte + geloggte Einheiten) */}
+            {/* Diese Woche absolviert (Strava-Feed-Karten) */}
             {Array.isArray(trainingPlan.completedWorkouts) && trainingPlan.completedWorkouts.length > 0 && (() => {
               const acts = trainingPlan.completedWorkouts
                 .slice()
                 .sort((a, b) => String(b.completed_at || b.date).localeCompare(String(a.completed_at || a.date)));
+              const cardW = Dimensions.get('window').width - S.md * 2;
               return (
-                <View style={{ marginTop: S.xl }}>
-                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.md }]}>Diese Woche absolviert</Text>
-                  <View style={{ backgroundColor: C.surface, borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
-                    {acts.map((w, i) => {
-                      const sc = getSportColor(w.sport_type);
-                      const done = w.exercisesCompleted || {};
-                      const dateStr = (() => { try { return new Date((w.completed_at || w.date).replace(' ', 'T')).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); } catch (e) { return w.date; } })();
-                      const meta = [w.distance && `${w.distance} km`, w.duration_minutes && `${w.duration_minutes} Min`, (done.avg_hr || w.avg_hr) && `${done.avg_hr || w.avg_hr} bpm`].filter(Boolean).join(' · ');
-                      return (
-                        <TouchableOpacity
-                          key={w.id || i}
-                          activeOpacity={0.7}
-                          onPress={() => setDetailWorkout(w)}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.md, paddingHorizontal: S.md, borderBottomWidth: i < acts.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border }}
-                        >
-                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: `${sc}20`, alignItems: 'center', justifyContent: 'center' }}>
-                            <MaterialCommunityIcons name={getSportMci(w.sport_type)} size={19} color={sc} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[T.bodyMed, { color: C.text }]} numberOfLines={1}>{w.focus || w.title || 'Einheit'}</Text>
-                            <Text style={[T.caption, { color: C.textTertiary }]}>{dateStr}{meta ? ` · ${meta}` : ''}</Text>
-                          </View>
-                          {Array.isArray(done.route) && done.route.length > 1 ? (
-                            <RouteMapTiles route={done.route} width={56} height={56} color="#FC4C02" showAttribution={false} />
-                          ) : null}
-                          <Feather name="chevron-right" size={16} color={C.textTertiary} />
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                <View style={{ marginTop: S.xl, gap: S.md }}>
+                  <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase' }]}>Diese Woche absolviert</Text>
+                  {acts.map((w, i) => (
+                    <ActivityCard key={w.id || i} workout={w} width={cardW} onPress={() => setDetailWorkout(w)} />
+                  ))}
                 </View>
               );
             })()}
