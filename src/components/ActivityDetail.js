@@ -1,21 +1,16 @@
 /**
- * components/ActivityDetail.js — Detailansicht einer absolvierten Einheit (Strava-Stil)
+ * components/ActivityDetail.js — Einheiten-Detail (Strava/Komoot-Stil)
  *
- * Aufbau:
- *   - Echte GPS-Karte (RouteMapTiles) ganz oben
- *   - Titel + Sport + Datum/Uhrzeit/Ort/Gerät
- *   - Großes Kennzahlen-Raster (Distanz, Zeit, Tempo, Höhenmeter, kcal, Puls …)
- *   - Verlaufs-Diagramme: Herzfrequenz, Höhe, Geschwindigkeit (AreaChart)
- *   - Runden-/Split-Tabelle
- *   - Optionale Aktionen (actions) + Löschen
- *
- * Erwartet ein completed_workout-Objekt inkl. exercisesCompleted (Detail-JSON:
- * route, laps, *_stream, avg_watts, …).
+ * Vollbild-Karte im Hintergrund + ziehbares Bottom-Sheet mit den Werten:
+ *   - Sheet nach unten ziehen → Karte über den ganzen Bildschirm sichtbar
+ *   - Sheet nach oben ziehen → alle Details (Kennzahlen, Diagramme, Runden)
+ *   - Karten-Buttons rechts: Ebenen (Standard/Satellit/Hybrid), Zentrieren, Flyover ▶
+ *   - Diagramm-Scrub bewegt den Punkt live auf der Karte
  */
 
 // React/RN
-import React, { useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Animated, PanResponder, Modal } from 'react-native';
 
 // Third-party
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -34,24 +29,63 @@ const fmtHMS = (s) => {
 };
 const fmtPace = (s) => s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : '–';
 
+const LAYERS = [
+  { key: 'standard', label: 'Standard', icon: 'map' },
+  { key: 'satellit', label: 'Satellit', icon: 'globe' },
+  { key: 'hybrid', label: 'Hybrid', icon: 'layers' },
+];
+
 export default function ActivityDetail({ workout, onClose, onDelete, actions }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const mapRef = useRef(null);
+  const { height: screenH } = Dimensions.get('window');
+
+  const w = workout || {};
+  const done = w.exercisesCompleted || w.exercises_completed || {};
+  const hasRoute = Array.isArray(done.route) && done.route.length > 1;
+
+  // Bottom-Sheet: drei Rastpunkte (translateY vom oberen Rand)
+  const SNAP = hasRoute
+    ? { top: 70, mid: Math.round(screenH * 0.52), low: Math.round(screenH * 0.86) }
+    : { top: 70, mid: 70, low: 70 };
+  const sheetY = useRef(new Animated.Value(SNAP.mid)).current;
+  const curY = useRef(SNAP.mid);
+  const [layer, setLayer] = useState('satellit');
+  const [layerModal, setLayerModal] = useState(false);
+  const [flying, setFlying] = useState(false);
+
+  const snapTo = (val) => { curY.current = val; Animated.spring(sheetY, { toValue: val, useNativeDriver: true, bounciness: 2, speed: 16 }).start(); };
+  const nearest = (v) => [SNAP.top, SNAP.mid, SNAP.low].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
+
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => hasRoute,
+    onMoveShouldSetPanResponder: (e, g) => hasRoute && Math.abs(g.dy) > 4,
+    onPanResponderMove: (e, g) => {
+      const y = Math.max(SNAP.top, Math.min(SNAP.low, curY.current + g.dy));
+      sheetY.setValue(y);
+    },
+    onPanResponderRelease: (e, g) => {
+      const y = Math.max(SNAP.top, Math.min(SNAP.low, curY.current + g.dy));
+      // Wurf-Richtung berücksichtigen
+      let target = nearest(y);
+      if (g.vy > 0.6) target = y < SNAP.mid ? SNAP.mid : SNAP.low;
+      else if (g.vy < -0.6) target = y > SNAP.mid ? SNAP.mid : SNAP.top;
+      snapTo(target);
+    },
+  })).current;
+
   if (!workout) return null;
 
-  const W = Dimensions.get('window').width;
-  const w = workout;
-  const done = w.exercisesCompleted || w.exercises_completed || {};
   const sport = w.sport_type || 'other';
   const sc = getSportColor(sport);
   const title = w.focus || w.title || 'Einheit';
+  const W = Dimensions.get('window').width;
 
   const movingS = (w.duration_minutes || 0) * 60 || done.moving_time_s || 0;
   const distKm = w.distance || (done.distance ? done.distance / 1000 : null);
   const isDistance = ['run', 'bike', 'swim', 'row', 'hike'].includes(sport) && distKm;
   const paceSKm = isDistance && movingS && distKm ? movingS / distKm : null;
 
-  // Datum · Uhrzeit · Ort · Gerät
   let when = w.date || '';
   try {
     const dt = new Date((w.completed_at || w.date || '').replace(' ', 'T'));
@@ -60,7 +94,6 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   } catch (e) {}
   const subline = [when, done.location, done.device].filter(Boolean).join(' · ');
 
-  // Kennzahlen-Raster (Label + großer Wert, 2 Spalten wie Strava)
   const grid = [];
   if (isDistance) grid.push(['Distanz', `${(+distKm).toFixed(2)} km`]);
   grid.push(['Bewegungszeit', fmtHMS(movingS)]);
@@ -79,112 +112,163 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   if (w.perceived_effort) grid.push(['RPE', `${w.perceived_effort}/10`]);
 
   const laps = Array.isArray(done.laps) ? done.laps : (Array.isArray(done.splits) ? done.splits : []);
-  const hasRoute = Array.isArray(done.route) && done.route.length > 1;
   const xMaxKm = Array.isArray(done.dist_stream) && done.dist_stream.length ? done.dist_stream[done.dist_stream.length - 1] : (isDistance ? +distKm : null);
-
   const charts = [
     { title: 'Herzfrequenz', data: done.hr_stream, color: '#EF4444', unit: 'bpm', extra: [['Ø', (done.avg_hr || w.avg_hr) && `${done.avg_hr || w.avg_hr} bpm`], ['Max', done.max_hr && `${done.max_hr} bpm`]] },
     { title: 'Höhe', data: done.alt_stream, color: '#9CA3AF', unit: 'm', extra: [['Anstieg', done.elevation_gain_m && `${done.elevation_gain_m} m`], ['Max', Array.isArray(done.alt_stream) && `${Math.max(...done.alt_stream.filter(Boolean))} m`]] },
     { title: 'Geschwindigkeit', data: done.speed_stream, color: '#3B82F6', unit: 'km/h', extra: [['Ø', done.avg_speed_kmh && `${done.avg_speed_kmh} km/h`], ['Max', done.max_speed_kmh && `${done.max_speed_kmh} km/h`]] },
   ].filter(c => Array.isArray(c.data) && c.data.length > 2);
 
+  const chooseLayer = (name) => { setLayer(name); setLayerModal(false); mapRef.current?.setLayer(name); };
+  const toggleFly = () => { setFlying(f => !f); mapRef.current?.flyover(); };
+
+  const MapBtn = ({ icon, onPress, active }) => (
+    <TouchableOpacity onPress={onPress} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: active ? '#FC4C02' : 'rgba(20,20,20,0.75)', alignItems: 'center', justifyContent: 'center' }}>
+      <Feather name={icon} size={19} color="#fff" />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg }}>
-      {/* Schließen-Button über der Karte */}
-      <TouchableOpacity onPress={onClose} hitSlop={8} style={{ position: 'absolute', top: 54, left: S.md, zIndex: 10, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-        <Feather name="chevron-down" size={22} color="#fff" />
-      </TouchableOpacity>
-
-      {/* Feste interaktive Karte oben (zoomen/verschieben ohne Scroll-Konflikt) */}
-      {hasRoute ? (
-        <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" height={300} />
-      ) : (
-        <View style={{ height: 90 }} />
+      {/* Vollbild-Karte im Hintergrund */}
+      {hasRoute && (
+        <View style={StyleSheet.absoluteFill}>
+          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={layer} />
+        </View>
       )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
-        {/* Titel + Meta */}
-        <View style={{ paddingHorizontal: S.lg, paddingTop: S.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <MaterialCommunityIcons name={getSportMci(sport)} size={18} color={C.textSecondary} />
-            <Text style={[T.caption, { color: C.textSecondary, flex: 1 }]} numberOfLines={1}>{subline}</Text>
-          </View>
-          <Text style={[T.h2, { color: C.text, marginTop: 4 }]}>{title}</Text>
+      {/* Zurück-Button oben links */}
+      <TouchableOpacity onPress={onClose} hitSlop={8} style={{ position: 'absolute', top: 54, left: S.md, zIndex: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(20,20,20,0.75)', alignItems: 'center', justifyContent: 'center' }}>
+        <Feather name="chevron-left" size={22} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Karten-Buttons rechts */}
+      {hasRoute && (
+        <View style={{ position: 'absolute', top: 54, right: S.md, zIndex: 20, gap: 10 }}>
+          <MapBtn icon="layers" onPress={() => setLayerModal(true)} />
+          <MapBtn icon="crosshair" onPress={() => mapRef.current?.recenter()} />
+          <MapBtn icon="play" onPress={toggleFly} active={flying} />
+        </View>
+      )}
+
+      {/* Bottom-Sheet mit Werten */}
+      <Animated.View
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: screenH,
+          backgroundColor: C.bg, borderTopLeftRadius: hasRoute ? 20 : 0, borderTopRightRadius: hasRoute ? 20 : 0,
+          transform: [{ translateY: sheetY }],
+          shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 12,
+        }}
+      >
+        {/* Ziehbarer Griff */}
+        <View {...pan.panHandlers} style={{ paddingTop: 8, paddingBottom: 4, alignItems: 'center' }}>
+          {hasRoute && <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.borderStrong }} />}
         </View>
 
-        {/* Kennzahlen-Raster */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.lg, marginTop: S.lg }}>
-          {grid.map(([label, val], i) => (
-            <View key={label} style={{ width: '50%', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border, paddingRight: i % 2 === 0 ? S.md : 0 }}>
-              <Text style={[T.caption, { color: C.textTertiary }]}>{label}</Text>
-              <Text style={{ color: C.text, fontSize: 21, fontWeight: '700', letterSpacing: -0.3, marginTop: 2 }}>{val}</Text>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+          {/* Titel + Meta */}
+          <View style={{ paddingHorizontal: S.lg, paddingTop: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name={getSportMci(sport)} size={18} color={C.textSecondary} />
+              <Text style={[T.caption, { color: C.textSecondary, flex: 1 }]} numberOfLines={1}>{subline}</Text>
+            </View>
+            <Text style={[T.h2, { color: C.text, marginTop: 4 }]}>{title}</Text>
+          </View>
+
+          {/* Kennzahlen-Raster */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.lg, marginTop: S.lg }}>
+            {grid.map(([label, val], i) => (
+              <View key={label} style={{ width: '50%', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border, paddingRight: i % 2 === 0 ? S.md : 0 }}>
+                <Text style={[T.caption, { color: C.textTertiary }]}>{label}</Text>
+                <Text style={{ color: C.text, fontSize: 21, fontWeight: '700', letterSpacing: -0.3, marginTop: 2 }}>{val}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Diagramme */}
+          {charts.map((ch) => (
+            <View key={ch.title} style={{ marginTop: S.xl }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: S.lg, marginBottom: S.sm }}>
+                <Text style={[T.h3, { color: C.text }]}>{ch.title}</Text>
+                <View style={{ flexDirection: 'row', gap: S.md }}>
+                  {ch.extra.filter(([, v]) => v).map(([l, v]) => (
+                    <View key={l} style={{ alignItems: 'flex-end' }}>
+                      <Text style={[T.label, { color: C.textTertiary }]}>{l}</Text>
+                      <Text style={[T.bodyMed, { color: C.text }]}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View style={{ paddingHorizontal: S.md }}>
+                <AreaChart
+                  data={ch.data} color={ch.color} width={W - S.md * 2} height={140}
+                  unit={ch.unit} xMaxKm={xMaxKm}
+                  onScrub={(f) => { if (f == null) mapRef.current?.hide(); else mapRef.current?.showAt(f); }}
+                />
+              </View>
             </View>
           ))}
-        </View>
 
-        {/* Verlaufs-Diagramme */}
-        {charts.map((ch) => (
-          <View key={ch.title} style={{ marginTop: S.xl }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: S.lg, marginBottom: S.sm }}>
-              <Text style={[T.h3, { color: C.text }]}>{ch.title}</Text>
-              <View style={{ flexDirection: 'row', gap: S.md }}>
-                {ch.extra.filter(([, v]) => v).map(([l, v]) => (
-                  <View key={l} style={{ alignItems: 'flex-end' }}>
-                    <Text style={[T.label, { color: C.textTertiary }]}>{l}</Text>
-                    <Text style={[T.bodyMed, { color: C.text }]}>{v}</Text>
+          {/* Runden / Splits */}
+          {laps.length > 1 && (
+            <View style={{ marginTop: S.xl, paddingHorizontal: S.lg }}>
+              <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>{done.laps ? 'Runden' : 'Splits'}</Text>
+              <View style={{ backgroundColor: C.surface, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
+                {laps.slice(0, 30).map((lp, li) => (
+                  <View key={li} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 9, borderBottomWidth: li < Math.min(laps.length, 30) - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border, gap: S.sm }}>
+                    <Text style={[T.label, { color: lp.typ === 'WORK' ? sc : C.textTertiary, width: 26 }]}>{lp.km || li + 1}</Text>
+                    <Text style={[T.caption, { color: C.text, flex: 1 }]}>
+                      {lp.distanz_m ? `${(lp.distanz_m / 1000).toFixed(2)} km` : ''}
+                      {lp.pace_s_km ? `  ${fmtPace(lp.pace_s_km)}/km` : ''}
+                      {lp.zeit_s ? `  ·  ${fmtHMS(lp.zeit_s)}` : ''}
+                    </Text>
+                    {lp.avg_watts ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_watts} W</Text> : null}
+                    {lp.avg_hr ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_hr} bpm</Text> : null}
                   </View>
                 ))}
               </View>
             </View>
-            <View style={{ paddingHorizontal: S.md }}>
-              <AreaChart
-                data={ch.data} color={ch.color} width={W - S.md * 2} height={140}
-                unit={ch.unit} xMaxKm={xMaxKm}
-                onScrub={(f) => { if (f == null) mapRef.current?.hide(); else mapRef.current?.showAt(f); }}
-              />
-            </View>
-          </View>
-        ))}
+          )}
 
-        {/* Runden / Splits */}
-        {laps.length > 1 && (
-          <View style={{ marginTop: S.xl, paddingHorizontal: S.lg }}>
-            <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>{done.laps ? 'Runden' : 'Splits'}</Text>
-            <View style={{ backgroundColor: C.surface, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
-              {laps.slice(0, 30).map((lp, li) => (
-                <View key={li} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 9, borderBottomWidth: li < Math.min(laps.length, 30) - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border, gap: S.sm }}>
-                  <Text style={[T.label, { color: lp.typ === 'WORK' ? sc : C.textTertiary, width: 26 }]}>{lp.km || li + 1}</Text>
-                  <Text style={[T.caption, { color: C.text, flex: 1 }]}>
-                    {lp.distanz_m ? `${(lp.distanz_m / 1000).toFixed(2)} km` : ''}
-                    {lp.pace_s_km ? `  ${fmtPace(lp.pace_s_km)}/km` : ''}
-                    {lp.zeit_s ? `  ·  ${fmtHMS(lp.zeit_s)}` : ''}
-                  </Text>
-                  {lp.avg_watts ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_watts} W</Text> : null}
-                  {lp.avg_hr ? <Text style={[T.caption, { color: C.textSecondary }]}>{lp.avg_hr} bpm</Text> : null}
-                </View>
+          {/* Aktionen */}
+          {(actions?.length > 0 || onDelete) && (
+            <View style={{ paddingHorizontal: S.lg, gap: S.sm, marginTop: S.xl }}>
+              {actions?.map((a, i) => (
+                <TouchableOpacity key={i} onPress={a.onPress} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: a.primary ? C.accent : C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: a.primary ? C.accent : C.border }}>
+                  {a.icon && <Feather name={a.icon} size={16} color={a.primary ? C.accentText : C.text} />}
+                  <Text style={[T.bodyMed, { color: a.primary ? C.accentText : C.text }]}>{a.label}</Text>
+                </TouchableOpacity>
               ))}
+              {onDelete && (
+                <TouchableOpacity onPress={onDelete} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12 }}>
+                  <Feather name="trash-2" size={14} color={C.danger} />
+                  <Text style={[T.caption, { color: C.danger }]}>Einheit löschen</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </Animated.View>
+
+      {/* Ebenen-Auswahl */}
+      <Modal visible={layerModal} transparent animationType="fade" onRequestClose={() => setLayerModal(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setLayerModal(false)}>
+          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: S.lg, paddingBottom: 40 }}>
+            <Text style={[T.h3, { color: C.text, marginBottom: S.md }]}>Kartenstil</Text>
+            <View style={{ flexDirection: 'row', gap: S.sm }}>
+              {LAYERS.map(l => {
+                const active = layer === l.key;
+                return (
+                  <TouchableOpacity key={l.key} onPress={() => chooseLayer(l.key)} style={{ flex: 1, alignItems: 'center', paddingVertical: S.md, borderRadius: R.md, backgroundColor: active ? '#FC4C02' + '18' : C.surface, borderWidth: 1.5, borderColor: active ? '#FC4C02' : C.border }}>
+                    <Feather name={l.icon} size={22} color={active ? '#FC4C02' : C.textSecondary} />
+                    <Text style={[T.label, { color: active ? '#FC4C02' : C.textSecondary, marginTop: 6 }]}>{l.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
-        )}
-
-        {/* Aktionen */}
-        {(actions?.length > 0 || onDelete) && (
-          <View style={{ paddingHorizontal: S.lg, gap: S.sm, marginTop: S.xl }}>
-            {actions?.map((a, i) => (
-              <TouchableOpacity key={i} onPress={a.onPress} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: a.primary ? C.accent : C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: a.primary ? C.accent : C.border }}>
-                {a.icon && <Feather name={a.icon} size={16} color={a.primary ? C.accentText : C.text} />}
-                <Text style={[T.bodyMed, { color: a.primary ? C.accentText : C.text }]}>{a.label}</Text>
-              </TouchableOpacity>
-            ))}
-            {onDelete && (
-              <TouchableOpacity onPress={onDelete} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12 }}>
-                <Feather name="trash-2" size={14} color={C.danger} />
-                <Text style={[T.caption, { color: C.danger }]}>Einheit löschen</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </ScrollView>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
