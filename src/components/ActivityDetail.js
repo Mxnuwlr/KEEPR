@@ -50,22 +50,23 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const done = w.exercisesCompleted || w.exercises_completed || {};
   const hasRoute = Array.isArray(done.route) && done.route.length > 1;
 
-  // Bottom-Sheet: drei Rastpunkte (translateY vom oberen Rand)
+  // Bottom-Sheet über HÖHE (unten verankert) — so bleibt der Inhalt immer über
+  // dem Home-Indikator sichtbar. Drei Rastpunkte als Höhen.
   const SNAP = hasRoute
-    ? { top: 70, mid: Math.round(screenH * 0.52), low: Math.round(screenH * 0.86) }
-    : { top: 70, mid: 70, low: 70 };
-  const sheetY = useRef(new Animated.Value(SNAP.mid)).current;
-  const curY = useRef(SNAP.mid);
+    ? { low: Math.round(screenH * 0.16), mid: Math.round(screenH * 0.48), top: screenH - 66 }
+    : { low: screenH, mid: screenH, top: screenH };
+  const sheetH = useRef(new Animated.Value(SNAP.mid)).current;
+  const curH = useRef(SNAP.mid);
   const [base, setBase] = useState('hybrid');
   const [overlays, setOverlays] = useState([]);
   const [layerModal, setLayerModal] = useState(false);
   const [flying, setFlying] = useState(false);
 
-  const snapTo = (val) => {
-    curY.current = val;
-    Animated.spring(sheetY, { toValue: val, useNativeDriver: true, bounciness: 2, speed: 16 }).start();
-    // Route im sichtbaren (nicht vom Blatt verdeckten) Bereich neu zentrieren
-    setTimeout(() => mapRef.current?.recenter(screenH - val), 260);
+  const snapTo = (h) => {
+    curH.current = h;
+    Animated.spring(sheetH, { toValue: h, useNativeDriver: false, bounciness: 2, speed: 16 }).start();
+    // Route in den sichtbaren (nicht vom Blatt verdeckten) Bereich einpassen: Blatt-Höhe = unteres Padding
+    setTimeout(() => mapRef.current?.recenter(h), 260);
   };
   const nearest = (v) => [SNAP.top, SNAP.mid, SNAP.low].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 
@@ -73,15 +74,14 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
     onStartShouldSetPanResponder: () => hasRoute,
     onMoveShouldSetPanResponder: (e, g) => hasRoute && Math.abs(g.dy) > 4,
     onPanResponderMove: (e, g) => {
-      const y = Math.max(SNAP.top, Math.min(SNAP.low, curY.current + g.dy));
-      sheetY.setValue(y);
+      const h = Math.max(SNAP.low, Math.min(SNAP.top, curH.current - g.dy)); // runterziehen (dy>0) → kleiner
+      sheetH.setValue(h);
     },
     onPanResponderRelease: (e, g) => {
-      const y = Math.max(SNAP.top, Math.min(SNAP.low, curY.current + g.dy));
-      // Wurf-Richtung berücksichtigen
-      let target = nearest(y);
-      if (g.vy > 0.6) target = y < SNAP.mid ? SNAP.mid : SNAP.low;
-      else if (g.vy < -0.6) target = y > SNAP.mid ? SNAP.mid : SNAP.top;
+      const h = Math.max(SNAP.low, Math.min(SNAP.top, curH.current - g.dy));
+      let target = nearest(h);
+      if (g.vy > 0.6) target = h > SNAP.mid ? SNAP.mid : SNAP.low;       // schneller Wisch runter
+      else if (g.vy < -0.6) target = h < SNAP.mid ? SNAP.mid : SNAP.top; // schneller Wisch hoch
       snapTo(target);
     },
   })).current;
@@ -139,9 +139,11 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const toggleFly = () => {
     const next = !flying;
     setFlying(next);
-    if (next) snapTo(SNAP.low); // Blatt runter → Karte frei für die Animation
-    setTimeout(() => { mapRef.current?.recenter(screenH - SNAP.low); mapRef.current?.flyover(); }, next ? 340 : 0);
+    if (next) { snapTo(SNAP.low); setTimeout(() => { mapRef.current?.recenter(SNAP.low); mapRef.current?.flyover(); }, 340); }
+    else mapRef.current?.flyover();
   };
+  // Flyover fertig → zurück in den halbhohen „Banner"-Modus
+  const onFlyEnd = () => { setFlying(false); snapTo(SNAP.mid); };
 
   const MapBtn = ({ icon, onPress, active }) => (
     <TouchableOpacity onPress={onPress} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: active ? '#FC4C02' : 'rgba(20,20,20,0.75)', alignItems: 'center', justifyContent: 'center' }}>
@@ -154,7 +156,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
       {/* Vollbild-Karte im Hintergrund */}
       {hasRoute && (
         <View style={StyleSheet.absoluteFill}>
-          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={base} bottomPad={screenH - SNAP.mid} />
+          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={base} bottomPad={SNAP.mid} onFlyEnd={onFlyEnd} />
         </View>
       )}
 
@@ -167,26 +169,26 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
       {hasRoute && (
         <View style={{ position: 'absolute', top: 54, right: S.md, zIndex: 20, gap: 10 }}>
           <MapBtn icon="layers" onPress={() => setLayerModal(true)} />
-          <MapBtn icon="crosshair" onPress={() => mapRef.current?.recenter()} />
+          <MapBtn icon="crosshair" onPress={() => mapRef.current?.recenter(curH.current)} />
           <MapBtn icon="play" onPress={toggleFly} active={flying} />
         </View>
       )}
 
-      {/* Bottom-Sheet mit Werten */}
+      {/* Bottom-Sheet mit Werten — unten verankert, Höhe animiert */}
       <Animated.View
         style={{
-          position: 'absolute', left: 0, right: 0, top: 0, height: screenH,
+          position: 'absolute', left: 0, right: 0, bottom: 0, height: hasRoute ? sheetH : screenH,
           backgroundColor: C.bg, borderTopLeftRadius: hasRoute ? 20 : 0, borderTopRightRadius: hasRoute ? 20 : 0,
-          transform: [{ translateY: sheetY }],
           shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 12,
+          overflow: 'hidden',
         }}
       >
         {/* Ziehbarer Griff */}
-        <View {...pan.panHandlers} style={{ paddingTop: 8, paddingBottom: 4, alignItems: 'center' }}>
+        <View {...pan.panHandlers} style={{ paddingTop: hasRoute ? 8 : 54, paddingBottom: 4, alignItems: 'center' }}>
           {hasRoute && <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: C.borderStrong }} />}
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
           {/* Titel + Meta */}
           <View style={{ paddingHorizontal: S.lg, paddingTop: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

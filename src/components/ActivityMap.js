@@ -69,19 +69,20 @@ function showAt(f){
   if(!cursor)cursor=L.circleMarker(p,{radius:8,color:'#fff',weight:3,fillColor:'${color}',fillOpacity:1}).addTo(map);
   else cursor.setLatLng(p);
 }
+function postRN(o){try{window.ReactNativeWebView.postMessage(JSON.stringify(o));}catch(_){}}
 var flyTimer=null;
 function flyover(){
-  if(flyTimer){clearInterval(flyTimer);flyTimer=null;if(cursor){map.removeLayer(cursor);cursor=null;}return;}
+  if(flyTimer){clearInterval(flyTimer);flyTimer=null;if(cursor){map.removeLayer(cursor);cursor=null;}postRN({t:'flyend'});return;}
   var i=0, step=Math.max(1,Math.round(pts.length/200));
   flyTimer=setInterval(function(){
-    if(i>=pts.length){showAt(1);clearInterval(flyTimer);flyTimer=null;return;}
+    if(i>=pts.length){showAt(1);clearInterval(flyTimer);flyTimer=null;setTimeout(function(){if(cursor){map.removeLayer(cursor);cursor=null;}postRN({t:'flyend'});},500);return;}
     showAt(i/(pts.length-1)); i+=step;
   },60);
 }
 </script></body></html>`;
 };
 
-const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit', bottomPad = 0 }, ref) => {
+const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit', bottomPad = 0, onFlyEnd }, ref) => {
   const webRef = useRef(null);
   const inject = (js) => { try { webRef.current?.injectJavaScript(js + ';true;'); } catch (e) {} };
   useImperativeHandle(ref, () => ({
@@ -105,6 +106,7 @@ const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit', 
         javaScriptEnabled
         domStorageEnabled
         androidLayerType="hardware"
+        onMessage={(e) => { try { const d = JSON.parse(e.nativeEvent.data); if (d.t === 'flyend') onFlyEnd?.(); } catch (err) {} }}
       />
     </View>
   );
