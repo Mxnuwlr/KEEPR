@@ -314,7 +314,14 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
   // Intervalle/Runden für die neuesten Einheiten (letzte 7 Tage, max. 8 Abrufe)
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
   const lapsMap = {};
-  const routeMap = {};
+  const streamMap = {};
+  const dsClient = (arr, n = 200) => {
+    if (!Array.isArray(arr) || !arr.length) return null;
+    const c = arr.map(v => (typeof v === 'number' && !isNaN(v)) ? v : null);
+    const step = Math.max(1, Math.ceil(c.length / n));
+    const o = []; for (let i = 0; i < c.length; i += step) o.push(c[i]);
+    return o.some(v => v != null) ? o : null;
+  };
   await Promise.all(
     sorted.filter(a => String(a.start_date_local || '').slice(0, 10) >= weekAgo).slice(0, 8).map(async (a) => {
       try {
@@ -325,25 +332,26 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
           if (ivs && ivs.length > 1) lapsMap[a.id] = ivs;
         }
       } catch (e) {}
-      // GPS-Route (latlng-Stream) → auf ~200 Punkte reduziert für die Strecken-Karte
+      // Alle Mess-Streams: GPS-Route + Puls/Höhe/Tempo-Verlauf für die Detailansicht
       try {
-        const r = await fetch(`https://intervals.icu/api/v1/activity/${a.id}/streams?types=latlng`, { headers });
+        const r = await fetch(`https://intervals.icu/api/v1/activity/${a.id}/streams`, { headers });
         if (r.ok) {
           const streams = await r.json();
-          const latlng = (Array.isArray(streams) ? streams : []).find(s => s.type === 'latlng');
-          // intervals.icu: lat in data, lng in data2 (Fallback: Paar-Format)
+          const by = {}; for (const s of (Array.isArray(streams) ? streams : [])) by[s.type] = s;
+          const ll = by.latlng;
           let pts = [];
-          if (Array.isArray(latlng?.data) && Array.isArray(latlng?.data2)) {
-            for (let pi = 0; pi < latlng.data.length; pi++) {
-              if (latlng.data[pi] != null && latlng.data2[pi] != null) pts.push([latlng.data[pi], latlng.data2[pi]]);
-            }
-          } else if (Array.isArray(latlng?.data)) {
-            pts = latlng.data.filter(p => Array.isArray(p) && p.length === 2 && p[0] != null);
+          if (Array.isArray(ll?.data) && Array.isArray(ll?.data2)) {
+            for (let pi = 0; pi < ll.data.length; pi++) if (ll.data[pi] != null && ll.data2[pi] != null) pts.push([ll.data[pi], ll.data2[pi]]);
+          } else if (Array.isArray(ll?.data)) {
+            pts = ll.data.filter(p => Array.isArray(p) && p.length === 2 && p[0] != null);
           }
-          if (pts.length > 10) {
-            const step = Math.max(1, Math.ceil(pts.length / 200));
-            routeMap[a.id] = pts.filter((_, i) => i % step === 0).map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
-          }
+          const out = {};
+          if (pts.length > 10) { const st = Math.max(1, Math.ceil(pts.length / 200)); out.route = pts.filter((_, i) => i % st === 0).map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]); }
+          const hr = dsClient(by.heartrate?.data); if (hr) out.hr = hr.map(v => v == null ? null : Math.round(v));
+          const alt = dsClient(by.altitude?.data); if (alt) out.alt = alt.map(v => v == null ? null : Math.round(v));
+          const spd = dsClient(by.velocity_smooth?.data); if (spd) out.speed = spd.map(v => v == null ? null : +(v * 3.6).toFixed(1));
+          const dist = dsClient(by.distance?.data); if (dist) out.dist = dist.map(v => v == null ? null : +(v / 1000).toFixed(2));
+          streamMap[a.id] = out;
         }
       } catch (e) {}
     })
@@ -363,11 +371,16 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
       avg_hr: a.average_heartrate ? Math.round(a.average_heartrate) : null,
       max_hr: a.max_heartrate ? Math.round(a.max_heartrate) : null,
       avg_speed_kmh: a.average_speed ? +(a.average_speed * 3.6).toFixed(1) : null,
+      max_speed_kmh: a.max_speed ? +(a.max_speed * 3.6).toFixed(1) : null,
+      elapsed_time_s: a.elapsed_time || null,
       avg_watts: a.icu_average_watts || a.average_watts ? Math.round(a.icu_average_watts || a.average_watts) : null,
       weighted_watts: a.icu_weighted_avg_watts ? Math.round(a.icu_weighted_avg_watts) : null,
       elevation_gain_m: a.total_elevation_gain ? Math.round(a.total_elevation_gain) : null,
       calories: a.calories ? Math.round(a.calories) : null,
       training_load: a.icu_training_load || null,
+      avg_cadence: a.average_cadence ? Math.round(a.average_cadence) : null,
+      device: a.device_name || null,
+      location: a.location_name || null,
       laps: lapsMap[a.id] ? lapsMap[a.id].slice(0, 40).map(iv => ({
         typ: iv.type || null,
         zeit_s: iv.moving_time || iv.elapsed_time || null,
@@ -375,7 +388,11 @@ export async function syncIntervalsIcu(athleteId, apiKey) {
         avg_hr: iv.average_heartrate ? Math.round(iv.average_heartrate) : null,
         avg_watts: iv.average_watts ? Math.round(iv.average_watts) : null,
       })) : null,
-      route: routeMap[a.id] || null,
+      route: streamMap[a.id]?.route || null,
+      hr_stream: streamMap[a.id]?.hr || null,
+      alt_stream: streamMap[a.id]?.alt || null,
+      speed_stream: streamMap[a.id]?.speed || null,
+      dist_stream: streamMap[a.id]?.dist || null,
     },
   })).filter(w => w.date && w.durationMin > 0);
 

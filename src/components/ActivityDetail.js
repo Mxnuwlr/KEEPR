@@ -1,24 +1,21 @@
 /**
  * components/ActivityDetail.js — Detailansicht einer absolvierten Einheit (Strava-Stil)
  *
- * Vollbild-Overlay mit:
- *   - Header: Sport-Icon, Titel, Datum/Uhrzeit
- *   - Große Primär-Kennzahlen (Distanz / Zeit / Tempo bzw. Pace)
- *   - GPS-Strecken-Karte (RouteMap)
- *   - Sekundär-Grid (Höhenmeter, kcal, Puls, Watt, NP, Load …)
+ * Aufbau:
+ *   - Echte GPS-Karte (RouteMapTiles) ganz oben
+ *   - Titel + Sport + Datum/Uhrzeit/Ort/Gerät
+ *   - Großes Kennzahlen-Raster (Distanz, Zeit, Tempo, Höhenmeter, kcal, Puls …)
+ *   - Verlaufs-Diagramme: Herzfrequenz, Höhe, Geschwindigkeit (AreaChart)
  *   - Runden-/Split-Tabelle
- *   - Optionale Aktionen (z.B. Austauschen/Löschen) über `actions`
+ *   - Optionale Aktionen (actions) + Löschen
  *
- * Erwartet ein completed_workout-Objekt (wie vom Backend), inkl.
- * exercisesCompleted (Detail-JSON: route, laps, avg_watts, …).
- *
- * Props: { workout, onClose, onDelete, actions }
- *   actions: [{ icon, label, onPress, danger }] — untere Button-Reihe
+ * Erwartet ein completed_workout-Objekt inkl. exercisesCompleted (Detail-JSON:
+ * route, laps, *_stream, avg_watts, …).
  */
 
 // React/RN
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 
 // Third-party
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -27,7 +24,8 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { getSportColor } from '../api/client';
 import { getSportMci } from '../data/sports';
-import RouteMap from './RouteMap';
+import RouteMapTiles from './RouteMapTiles';
+import AreaChart from './AreaChart';
 
 const fmtHMS = (s) => {
   if (!s) return '–';
@@ -40,103 +38,113 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   if (!workout) return null;
 
+  const W = Dimensions.get('window').width;
   const w = workout;
   const done = w.exercisesCompleted || w.exercises_completed || {};
   const sport = w.sport_type || 'other';
   const sc = getSportColor(sport);
   const title = w.focus || w.title || 'Einheit';
 
-  const durS = (w.duration_minutes || 0) * 60 || done.moving_time_s || 0;
+  const movingS = (w.duration_minutes || 0) * 60 || done.moving_time_s || 0;
   const distKm = w.distance || (done.distance ? done.distance / 1000 : null);
   const isDistance = ['run', 'bike', 'swim', 'row', 'hike'].includes(sport) && distKm;
-  const paceSKm = isDistance && durS && distKm ? durS / distKm : null;
+  const paceSKm = isDistance && movingS && distKm ? movingS / distKm : null;
 
-  // Datum + Uhrzeit
+  // Datum · Uhrzeit · Ort · Gerät
   let when = w.date || '';
   try {
     const dt = new Date((w.completed_at || w.date || '').replace(' ', 'T'));
     if (!isNaN(dt)) when = dt.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
       + (w.completed_at && w.completed_at.includes(' ') ? ` · ${dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '');
   } catch (e) {}
+  const subline = [when, done.location, done.device].filter(Boolean).join(' · ');
 
-  // Primär-Kennzahlen (große Zahlen wie bei Strava)
-  const primary = [];
-  if (isDistance) primary.push([`${(+distKm).toFixed(2)}`, 'km']);
-  primary.push([fmtHMS(durS), 'Zeit']);
-  if (sport === 'run' && paceSKm) primary.push([fmtPace(paceSKm), '/km']);
-  else if (['bike', 'row'].includes(sport) && done.avg_speed_kmh) primary.push([`${done.avg_speed_kmh}`, 'km/h']);
-  else if (sport === 'swim' && paceSKm) primary.push([fmtPace(paceSKm / 10), '/100m']);
-  else if (done.calories || w.calories) primary.push([`${done.calories || w.calories}`, 'kcal']);
-
-  // Sekundär-Grid
-  const secondary = [
-    ['Ø Puls', (done.avg_hr || w.avg_hr) ? `${done.avg_hr || w.avg_hr} bpm` : null],
-    ['Max. Puls', done.max_hr ? `${done.max_hr} bpm` : null],
-    ['Ø Watt', done.avg_watts ? `${done.avg_watts} W` : null],
-    ['NP', done.weighted_watts ? `${done.weighted_watts} W` : null],
-    ['Höhenmeter', done.elevation_gain_m ? `${done.elevation_gain_m} m` : null],
-    ['Kalorien', (done.calories || w.calories) ? `${done.calories || w.calories} kcal` : null],
-    ['Load', done.training_load ? `${done.training_load}` : null],
-    ['RPE', w.perceived_effort ? `${w.perceived_effort}/10` : null],
-  ].filter(([, v]) => v);
+  // Kennzahlen-Raster (Label + großer Wert, 2 Spalten wie Strava)
+  const grid = [];
+  if (isDistance) grid.push(['Distanz', `${(+distKm).toFixed(2)} km`]);
+  grid.push(['Bewegungszeit', fmtHMS(movingS)]);
+  if (done.elapsed_time_s && done.elapsed_time_s > movingS + 30) grid.push(['Verstrichene Zeit', fmtHMS(done.elapsed_time_s)]);
+  if (sport === 'run' && paceSKm) grid.push(['Ø Pace', `${fmtPace(paceSKm)} /km`]);
+  else if (done.avg_speed_kmh) grid.push(['Ø Geschw.', `${done.avg_speed_kmh} km/h`]);
+  if (done.max_speed_kmh) grid.push(['Höchstgeschw.', `${done.max_speed_kmh} km/h`]);
+  if (done.elevation_gain_m) grid.push(['Höhenzunahme', `${done.elevation_gain_m} m`]);
+  if (done.calories || w.calories) grid.push(['Kalorien', `${done.calories || w.calories} kcal`]);
+  if (done.avg_hr || w.avg_hr) grid.push(['Ø Herzfrequenz', `${done.avg_hr || w.avg_hr} bpm`]);
+  if (done.max_hr) grid.push(['Max. Herzfrequenz', `${done.max_hr} bpm`]);
+  if (done.avg_watts) grid.push(['Ø Leistung', `${done.avg_watts} W`]);
+  if (done.weighted_watts) grid.push(['Normalized Power', `${done.weighted_watts} W`]);
+  if (done.avg_cadence) grid.push(['Ø Trittfrequenz', `${done.avg_cadence}`]);
+  if (done.training_load) grid.push(['Training Load', `${done.training_load}`]);
+  if (w.perceived_effort) grid.push(['RPE', `${w.perceived_effort}/10`]);
 
   const laps = Array.isArray(done.laps) ? done.laps : (Array.isArray(done.splits) ? done.splits : []);
   const hasRoute = Array.isArray(done.route) && done.route.length > 1;
+  const xMaxKm = Array.isArray(done.dist_stream) && done.dist_stream.length ? done.dist_stream[done.dist_stream.length - 1] : (isDistance ? +distKm : null);
+
+  const charts = [
+    { title: 'Herzfrequenz', data: done.hr_stream, color: '#EF4444', unit: 'bpm', extra: [['Ø', (done.avg_hr || w.avg_hr) && `${done.avg_hr || w.avg_hr} bpm`], ['Max', done.max_hr && `${done.max_hr} bpm`]] },
+    { title: 'Höhe', data: done.alt_stream, color: '#9CA3AF', unit: 'm', extra: [['Anstieg', done.elevation_gain_m && `${done.elevation_gain_m} m`], ['Max', Array.isArray(done.alt_stream) && `${Math.max(...done.alt_stream.filter(Boolean))} m`]] },
+    { title: 'Geschwindigkeit', data: done.speed_stream, color: '#3B82F6', unit: 'km/h', extra: [['Ø', done.avg_speed_kmh && `${done.avg_speed_kmh} km/h`], ['Max', done.max_speed_kmh && `${done.max_speed_kmh} km/h`]] },
+  ].filter(c => Array.isArray(c.data) && c.data.length > 2);
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.lg, paddingTop: 60, paddingBottom: S.md }}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: `${sc}20`, alignItems: 'center', justifyContent: 'center' }}>
-            <MaterialCommunityIcons name={getSportMci(sport)} size={22} color={sc} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[T.h3, { color: C.text }]} numberOfLines={1}>{title}</Text>
-            <Text style={[T.caption, { color: C.textSecondary, marginTop: 1 }]}>{when}</Text>
-          </View>
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-            <Feather name="x" size={18} color={C.text} />
-          </TouchableOpacity>
-        </View>
+      {/* Schließen-Button über der Karte */}
+      <TouchableOpacity onPress={onClose} hitSlop={8} style={{ position: 'absolute', top: 54, left: S.md, zIndex: 10, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+        <Feather name="chevron-down" size={22} color="#fff" />
+      </TouchableOpacity>
 
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Karte */}
-        {hasRoute && (
-          <View style={{ paddingHorizontal: S.lg, marginBottom: S.md }}>
-            <RouteMap route={done.route} height={210} color={sc} />
-          </View>
+        {hasRoute ? (
+          <RouteMapTiles route={done.route} width={W} height={280} color={sc} />
+        ) : (
+          <View style={{ height: 90 }} />
         )}
 
-        {/* Primär-Kennzahlen */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: S.lg, marginBottom: S.lg }}>
-          {primary.map(([val, label], i) => (
-            <View key={label} style={{ flex: 1, alignItems: i === 0 ? 'flex-start' : 'center', borderLeftWidth: i > 0 ? StyleSheet.hairlineWidth : 0, borderLeftColor: C.border }}>
-              <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }}>{val}</Text>
-              <Text style={[T.caption, { color: C.textTertiary, marginTop: 2 }]}>{label}</Text>
+        {/* Titel + Meta */}
+        <View style={{ paddingHorizontal: S.lg, paddingTop: S.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MaterialCommunityIcons name={getSportMci(sport)} size={18} color={C.textSecondary} />
+            <Text style={[T.caption, { color: C.textSecondary, flex: 1 }]} numberOfLines={1}>{subline}</Text>
+          </View>
+          <Text style={[T.h2, { color: C.text, marginTop: 4 }]}>{title}</Text>
+        </View>
+
+        {/* Kennzahlen-Raster */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.lg, marginTop: S.lg }}>
+          {grid.map(([label, val], i) => (
+            <View key={label} style={{ width: '50%', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border, paddingRight: i % 2 === 0 ? S.md : 0 }}>
+              <Text style={[T.caption, { color: C.textTertiary }]}>{label}</Text>
+              <Text style={{ color: C.text, fontSize: 21, fontWeight: '700', letterSpacing: -0.3, marginTop: 2 }}>{val}</Text>
             </View>
           ))}
         </View>
 
-        {/* Sekundär-Grid */}
-        {secondary.length > 0 && (
-          <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
-              {secondary.map(([l, v]) => (
-                <View key={l} style={{ width: '31%', backgroundColor: C.surface, borderRadius: R.md, paddingVertical: 12, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-                  <Text style={[T.bodyMed, { color: C.text, fontSize: 15 }]}>{v}</Text>
-                  <Text style={[T.label, { color: C.textTertiary, marginTop: 2 }]}>{l}</Text>
-                </View>
-              ))}
+        {/* Verlaufs-Diagramme */}
+        {charts.map((ch) => (
+          <View key={ch.title} style={{ marginTop: S.xl }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: S.lg, marginBottom: S.sm }}>
+              <Text style={[T.h3, { color: C.text }]}>{ch.title}</Text>
+              <View style={{ flexDirection: 'row', gap: S.md }}>
+                {ch.extra.filter(([, v]) => v).map(([l, v]) => (
+                  <View key={l} style={{ alignItems: 'flex-end' }}>
+                    <Text style={[T.label, { color: C.textTertiary }]}>{l}</Text>
+                    <Text style={[T.bodyMed, { color: C.text }]}>{v}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+            <View style={{ paddingHorizontal: S.md }}>
+              <AreaChart data={ch.data} color={ch.color} width={W - S.md * 2} height={140} xMaxKm={xMaxKm} />
             </View>
           </View>
-        )}
+        ))}
 
         {/* Runden / Splits */}
         {laps.length > 1 && (
-          <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>
-              {done.laps ? 'Runden' : 'Splits'}
-            </Text>
+          <View style={{ marginTop: S.xl, paddingHorizontal: S.lg }}>
+            <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>{done.laps ? 'Runden' : 'Splits'}</Text>
             <View style={{ backgroundColor: C.surface, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' }}>
               {laps.slice(0, 30).map((lp, li) => (
                 <View key={li} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 9, borderBottomWidth: li < Math.min(laps.length, 30) - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.border, gap: S.sm }}>
@@ -154,21 +162,11 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
           </View>
         )}
 
-        {w.notes && !/\[(strava|intervals):/.test(w.notes) && (
-          <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <Text style={[T.caption, { color: C.textSecondary, fontStyle: 'italic' }]}>"{w.notes}"</Text>
-          </View>
-        )}
-
         {/* Aktionen */}
         {(actions?.length > 0 || onDelete) && (
-          <View style={{ paddingHorizontal: S.lg, gap: S.sm }}>
+          <View style={{ paddingHorizontal: S.lg, gap: S.sm, marginTop: S.xl }}>
             {actions?.map((a, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={a.onPress}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: a.primary ? C.accent : C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: a.primary ? C.accent : C.border }}
-              >
+              <TouchableOpacity key={i} onPress={a.onPress} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: a.primary ? C.accent : C.surface, borderRadius: R.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: a.primary ? C.accent : C.border }}>
                 {a.icon && <Feather name={a.icon} size={16} color={a.primary ? C.accentText : C.text} />}
                 <Text style={[T.bodyMed, { color: a.primary ? C.accentText : C.text }]}>{a.label}</Text>
               </TouchableOpacity>
