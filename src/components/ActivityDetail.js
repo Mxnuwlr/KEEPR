@@ -14,7 +14,7 @@
  */
 
 // React/RN
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 
 // Third-party
@@ -24,7 +24,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { getSportColor } from '../api/client';
 import { getSportMci } from '../data/sports';
-import RouteMapTiles from './RouteMapTiles';
+import ActivityMap from './ActivityMap';
 import AreaChart from './AreaChart';
 
 const fmtHMS = (s) => {
@@ -36,6 +36,7 @@ const fmtPace = (s) => s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).p
 
 export default function ActivityDetail({ workout, onClose, onDelete, actions }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const mapRef = useRef(null);
   if (!workout) return null;
 
   const W = Dimensions.get('window').width;
@@ -94,14 +95,14 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
         <Feather name="chevron-down" size={22} color="#fff" />
       </TouchableOpacity>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
-        {/* Karte */}
-        {hasRoute ? (
-          <RouteMapTiles route={done.route} width={W} height={280} color={sc} />
-        ) : (
-          <View style={{ height: 90 }} />
-        )}
+      {/* Feste interaktive Karte oben (zoomen/verschieben ohne Scroll-Konflikt) */}
+      {hasRoute ? (
+        <ActivityMap ref={mapRef} route={done.route} color={sc} height={300} />
+      ) : (
+        <View style={{ height: 90 }} />
+      )}
 
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Titel + Meta */}
         <View style={{ paddingHorizontal: S.lg, paddingTop: S.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -136,7 +137,11 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
               </View>
             </View>
             <View style={{ paddingHorizontal: S.md }}>
-              <AreaChart data={ch.data} color={ch.color} width={W - S.md * 2} height={140} xMaxKm={xMaxKm} />
+              <AreaChart
+                data={ch.data} color={ch.color} width={W - S.md * 2} height={140}
+                unit={ch.unit} xMaxKm={xMaxKm}
+                onScrub={(f) => { if (f == null) mapRef.current?.hide(); else mapRef.current?.showAt(f); }}
+              />
             </View>
           </View>
         ))}
