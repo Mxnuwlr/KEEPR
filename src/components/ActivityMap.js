@@ -67,12 +67,13 @@ function showAt(f){
 var flyTimer=null;
 function flyover(){
   if(flyTimer){clearInterval(flyTimer);flyTimer=null;if(cursor){map.removeLayer(cursor);cursor=null;}return;}
-  var i=0, step=Math.max(1,Math.round(pts.length/160));
-  map.fitBounds(line.getBounds(),{padding:[26,26]});
+  var i=0, step=Math.max(1,Math.round(pts.length/200));
+  // Gesamte Route im Blick behalten (kein Herumspringen), nur den Marker abfahren
+  map.fitBounds(line.getBounds(),{padding:[30,30]});
   flyTimer=setInterval(function(){
-    if(i>=pts.length){clearInterval(flyTimer);flyTimer=null;return;}
-    showAt(i/(pts.length-1)); map.panTo(pts[i],{animate:true,duration:0.1}); i+=step;
-  },80);
+    if(i>=pts.length){showAt(1);clearInterval(flyTimer);flyTimer=null;return;}
+    showAt(i/(pts.length-1)); i+=step;
+  },60);
 }
 function recenter(){map.fitBounds(line.getBounds(),{padding:[26,26]});}
 </script></body></html>`;

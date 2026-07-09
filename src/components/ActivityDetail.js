@@ -56,7 +56,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
     : { top: 70, mid: 70, low: 70 };
   const sheetY = useRef(new Animated.Value(SNAP.mid)).current;
   const curY = useRef(SNAP.mid);
-  const [base, setBase] = useState('satellit');
+  const [base, setBase] = useState('hybrid');
   const [overlays, setOverlays] = useState([]);
   const [layerModal, setLayerModal] = useState(false);
   const [flying, setFlying] = useState(false);
@@ -131,7 +131,13 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
     const next = overlays.includes(name) ? overlays.filter(o => o !== name) : [...overlays, name];
     setOverlays(next); mapRef.current?.applyLayers(base, next);
   };
-  const toggleFly = () => { setFlying(f => !f); mapRef.current?.flyover(); };
+  const toggleFly = () => {
+    const next = !flying;
+    setFlying(next);
+    if (next) snapTo(SNAP.low); // Blatt runter → ganze Karte frei für die Animation
+    // kurz warten, bis die Karte frei ist, dann Route einpassen + abfahren
+    setTimeout(() => { mapRef.current?.recenter(); mapRef.current?.flyover(); }, next ? 320 : 0);
+  };
 
   const MapBtn = ({ icon, onPress, active }) => (
     <TouchableOpacity onPress={onPress} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: active ? '#FC4C02' : 'rgba(20,20,20,0.75)', alignItems: 'center', justifyContent: 'center' }}>
