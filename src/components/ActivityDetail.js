@@ -10,7 +10,7 @@
 
 // React/RN
 import React, { useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Animated, PanResponder, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Animated, PanResponder, Modal, Image } from 'react-native';
 
 // Third-party
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,10 +29,16 @@ const fmtHMS = (s) => {
 };
 const fmtPace = (s) => s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : '–';
 
-const LAYERS = [
-  { key: 'standard', label: 'Standard', icon: 'map' },
-  { key: 'satellit', label: 'Satellit', icon: 'globe' },
-  { key: 'hybrid', label: 'Hybrid', icon: 'layers' },
+// Basiskarten mit echter Vorschau-Kachel (fester Ausschnitt) — wie im Strava-Picker
+const BASES = [
+  { key: 'standard', label: 'Standard', thumb: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/12/2172/1402.png' },
+  { key: 'satellit', label: 'Satellit', thumb: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1402/2172' },
+  { key: 'hybrid', label: 'Hybrid', thumb: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1402/2172' },
+  { key: 'topo', label: 'Gelände', thumb: 'https://a.tile.opentopomap.org/12/2172/1402.png' },
+];
+const OVERLAYS = [
+  { key: 'radwege', label: 'Radwege', icon: 'git-branch' },
+  { key: 'relief', label: 'Relief', icon: 'triangle' },
 ];
 
 export default function ActivityDetail({ workout, onClose, onDelete, actions }) {
@@ -50,7 +56,8 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
     : { top: 70, mid: 70, low: 70 };
   const sheetY = useRef(new Animated.Value(SNAP.mid)).current;
   const curY = useRef(SNAP.mid);
-  const [layer, setLayer] = useState('satellit');
+  const [base, setBase] = useState('satellit');
+  const [overlays, setOverlays] = useState([]);
   const [layerModal, setLayerModal] = useState(false);
   const [flying, setFlying] = useState(false);
 
@@ -119,7 +126,11 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
     { title: 'Geschwindigkeit', data: done.speed_stream, color: '#3B82F6', unit: 'km/h', extra: [['Ø', done.avg_speed_kmh && `${done.avg_speed_kmh} km/h`], ['Max', done.max_speed_kmh && `${done.max_speed_kmh} km/h`]] },
   ].filter(c => Array.isArray(c.data) && c.data.length > 2);
 
-  const chooseLayer = (name) => { setLayer(name); setLayerModal(false); mapRef.current?.setLayer(name); };
+  const chooseBase = (name) => { setBase(name); mapRef.current?.applyLayers(name, overlays); };
+  const toggleOverlay = (name) => {
+    const next = overlays.includes(name) ? overlays.filter(o => o !== name) : [...overlays, name];
+    setOverlays(next); mapRef.current?.applyLayers(base, next);
+  };
   const toggleFly = () => { setFlying(f => !f); mapRef.current?.flyover(); };
 
   const MapBtn = ({ icon, onPress, active }) => (
@@ -133,7 +144,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
       {/* Vollbild-Karte im Hintergrund */}
       {hasRoute && (
         <View style={StyleSheet.absoluteFill}>
-          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={layer} />
+          <ActivityMap ref={mapRef} route={done.route} color="#FC4C02" layer={base} />
         </View>
       )}
 
@@ -250,24 +261,48 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
         </ScrollView>
       </Animated.View>
 
-      {/* Ebenen-Auswahl */}
-      <Modal visible={layerModal} transparent animationType="fade" onRequestClose={() => setLayerModal(false)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setLayerModal(false)}>
-          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: S.lg, paddingBottom: 40 }}>
-            <Text style={[T.h3, { color: C.text, marginBottom: S.md }]}>Kartenstil</Text>
-            <View style={{ flexDirection: 'row', gap: S.sm }}>
-              {LAYERS.map(l => {
-                const active = layer === l.key;
-                return (
-                  <TouchableOpacity key={l.key} onPress={() => chooseLayer(l.key)} style={{ flex: 1, alignItems: 'center', paddingVertical: S.md, borderRadius: R.md, backgroundColor: active ? '#FC4C02' + '18' : C.surface, borderWidth: 1.5, borderColor: active ? '#FC4C02' : C.border }}>
-                    <Feather name={l.icon} size={22} color={active ? '#FC4C02' : C.textSecondary} />
-                    <Text style={[T.label, { color: active ? '#FC4C02' : C.textSecondary, marginTop: 6 }]}>{l.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+      {/* Karten-Picker (Kartentypen / Ebenen / Gelände) */}
+      <Modal visible={layerModal} transparent animationType="slide" onRequestClose={() => setLayerModal(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setLayerModal(false)} />
+          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: S.md, paddingBottom: 40, maxHeight: '80%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: S.lg }}>
+              <TouchableOpacity onPress={() => setLayerModal(false)} hitSlop={8}><Feather name="x" size={22} color={C.text} /></TouchableOpacity>
             </View>
+            <ScrollView contentContainerStyle={{ padding: S.lg, paddingTop: S.sm }} showsVerticalScrollIndicator={false}>
+              {/* Kartentypen */}
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                {BASES.map(b => {
+                  const active = base === b.key;
+                  return (
+                    <TouchableOpacity key={b.key} onPress={() => chooseBase(b.key)} style={{ flex: 1, alignItems: 'center' }}>
+                      <Image source={{ uri: b.thumb }} style={{ width: '100%', aspectRatio: 1, borderRadius: R.md, borderWidth: 2, borderColor: active ? '#FC4C02' : C.border, backgroundColor: C.surface }} />
+                      <Text style={[T.label, { color: active ? '#FC4C02' : C.textSecondary, marginTop: 6 }]}>{b.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Ebenen / Gelände (Overlays zum Ein-/Ausschalten) */}
+              <Text style={[T.h3, { color: C.text, marginTop: S.xl, marginBottom: S.sm }]}>Ebenen</Text>
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                {OVERLAYS.map(o => {
+                  const active = overlays.includes(o.key);
+                  return (
+                    <TouchableOpacity key={o.key} onPress={() => toggleOverlay(o.key)} style={{ width: '31%', alignItems: 'center', paddingVertical: S.md, borderRadius: R.md, backgroundColor: active ? '#FC4C02' + '18' : C.surface, borderWidth: 1.5, borderColor: active ? '#FC4C02' : C.border }}>
+                      <Feather name={o.icon} size={22} color={active ? '#FC4C02' : C.textSecondary} />
+                      <Text style={[T.label, { color: active ? '#FC4C02' : C.textSecondary, marginTop: 6 }]}>{o.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[T.caption, { color: C.textTertiary, marginTop: S.lg, lineHeight: 17 }]}>
+                Heatmaps sowie Lawinen-/Neigungs-Karten sind proprietäre Strava-Daten und stehen hier nicht zur Verfügung.
+              </Text>
+            </ScrollView>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );

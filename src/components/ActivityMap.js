@@ -31,20 +31,28 @@ const buildHtml = (route, color, layer) => {
 </head><body><div id="m"></div><script>
 var pts=${pts};
 var map=L.map('m',{zoomControl:false,attributionControl:true}).setView(pts[0],13);
-var layers={
+var bases={
   standard:L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OSM © CARTO'}),
   satellit:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'}),
-  labels:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19})
+  topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,subdomains:'abc',attribution:'© OpenTopoMap'})
 };
-var current=null, labelsOn=false;
-function setLayer(name){
-  if(current)map.removeLayer(current);
-  if(labelsOn){map.removeLayer(layers.labels);labelsOn=false;}
-  if(name==='hybrid'){current=layers.satellit;current.addTo(map);layers.labels.addTo(map);labelsOn=true;}
-  else{current=layers[name]||layers.standard;current.addTo(map);}
+var labels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
+var overlayDefs={
+  relief:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,opacity:0.35}),
+  radwege:L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© waymarkedtrails.org'})
+};
+var line=L.polyline(pts,{color:'${color}',weight:5,opacity:0.95});
+function applyLayers(base, ovs){
+  Object.values(bases).forEach(function(l){map.removeLayer(l);});
+  map.removeLayer(labels);
+  Object.values(overlayDefs).forEach(function(l){map.removeLayer(l);});
+  if(base==='hybrid'){bases.satellit.addTo(map);labels.addTo(map);}
+  else {(bases[base]||bases.standard).addTo(map);}
+  (ovs||[]).forEach(function(o){if(overlayDefs[o])overlayDefs[o].addTo(map);});
+  if(map.hasLayer(line))line.bringToFront();
 }
-setLayer('${layer}');
-var line=L.polyline(pts,{color:'${color}',weight:5,opacity:0.95}).addTo(map);
+applyLayers('${layer}', []);
+line.addTo(map);
 map.fitBounds(line.getBounds(),{padding:[26,26]});
 L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#22C55E',fillOpacity:1}).addTo(map);
 L.circleMarker(pts[pts.length-1],{radius:6,color:'#fff',weight:2,fillColor:'#EF4444',fillOpacity:1}).addTo(map);
@@ -76,7 +84,7 @@ const ActivityMap = forwardRef(({ route, color = '#FC4C02', layer = 'satellit' }
   useImperativeHandle(ref, () => ({
     showAt: (f) => inject(`showAt(${f})`),
     hide: () => inject(`showAt(-1)`),
-    setLayer: (name) => inject(`setLayer(${JSON.stringify(name)})`),
+    applyLayers: (base, ovs) => inject(`applyLayers(${JSON.stringify(base)}, ${JSON.stringify(ovs || [])})`),
     flyover: () => inject(`flyover()`),
     recenter: () => inject(`recenter()`),
   }));
