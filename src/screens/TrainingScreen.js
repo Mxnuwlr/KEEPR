@@ -850,14 +850,13 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const [detailWorkout, setDetailWorkout] = useState(null); // absolvierte Einheit (Strava-Detail)
   const [freshFeedback, setFreshFeedback] = useState(null); // frische KI-Analyse als Popup
 
-  // Frische Einheit mit KI-Feedback (letzte 48h, noch nicht gesehen) → Popup
+  // Neueste Einheit mit KI-Feedback, die noch nicht als Popup gesehen wurde → Popup
   useEffect(() => {
     (async () => {
       const list = trainingPlan?.completedWorkouts || [];
-      const cutoff = Date.now() - 48 * 3600 * 1000;
       const cand = list
         .map(w => { let fb = null; try { fb = typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : w.ai_feedback; } catch (e) {} return { w, fb }; })
-        .filter(x => x.fb?.feedback && new Date((x.w.completed_at || x.w.date || '').replace(' ', 'T')).getTime() > cutoff)
+        .filter(x => x.fb?.feedback)
         .sort((a, b) => String(b.w.completed_at || b.w.date).localeCompare(String(a.w.completed_at || a.w.date)));
       if (!cand.length) return;
       try {
