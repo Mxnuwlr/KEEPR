@@ -1040,6 +1040,14 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
     sessionsByDay[i] = trainingPlan?.sessions?.filter(s => s.day_index === i) || [];
   }
 
+  // Einheiten, die von einem Tag WEG-verschoben wurden (Geister-Anzeige am Original-Tag)
+  const movedAwayByDay = {};
+  for (const s of (trainingPlan?.sessions || [])) {
+    if (s.moved_from_day != null && s.moved_from_day !== s.day_index) {
+      (movedAwayByDay[s.moved_from_day] = movedAwayByDay[s.moved_from_day] || []).push(s);
+    }
+  }
+
   // Abgeschlossene Einheiten nach Wochentag (erscheinen am jeweiligen Tag, nicht separat)
   const completedByDay = {};
   for (const w of (trainingPlan?.completedWorkouts || [])) {
@@ -1444,9 +1452,19 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
             </ScrollView>
 
             {/* Day detail */}
-            {(daySessions.length > 0 || (completedByDay[selectedDay] || []).length > 0) && (
+            {(daySessions.length > 0 || (completedByDay[selectedDay] || []).length > 0 || (movedAwayByDay[selectedDay] || []).length > 0) && (
               <View>
                 <Text style={[T.h3, { color: C.text, marginBottom: S.md }]}>{DAYS[selectedDay]}</Text>
+
+                {/* Von diesem Tag weg-verschobene (durchgestrichene) Einheiten */}
+                {(movedAwayByDay[selectedDay] || []).map((s, mi) => (
+                  <View key={`moved${s.id || mi}`} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, padding: S.md, marginBottom: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, opacity: 0.7 }}>
+                    <MaterialCommunityIcons name={SPORT_MCI[s.sport_type] || 'run'} size={18} color={C.textTertiary} />
+                    <Text style={[T.bodyMed, { color: C.textTertiary, flex: 1, textDecorationLine: 'line-through' }]} numberOfLines={1}>{s.focus}</Text>
+                    <Feather name="corner-down-right" size={13} color={C.textTertiary} />
+                    <Text style={[T.caption, { color: C.textSecondary }]}>{DAY_SHORT[s.day_index]}</Text>
+                  </View>
+                ))}
 
                 {/* Absolvierte Einheiten dieses Tages (Strava-Feed-Karten) */}
                 {(completedByDay[selectedDay] || []).length > 0 && (
