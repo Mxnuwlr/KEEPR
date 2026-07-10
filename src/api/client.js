@@ -203,6 +203,9 @@ export const api = {
   // KI-Athleten-Analyse: prueft Profil gegen echte Leistung, passt es serverseitig an
   analyzeAthlete: () => request('POST', '/api/athlete/analyze', {}),
   getAthleteInsight: () => request('GET', '/api/athlete/insight'),
+  // KI-Feedback pro Einheit
+  getActivityFeedback: (id) => request('GET', `/api/activity/${id}/feedback`),
+  analyzeActivity: (id) => request('POST', `/api/activity/${id}/analyze`, {}),
   // Aktivitaeten-Import (z.B. intervals.icu — Garmin-Daten ohne Strava-Abo)
   importWorkouts: (source, workouts) => request('POST', '/api/workouts/import', { source, workouts }),
   // Key serverseitig registrieren → Pi-Worker synct alle 10 Min, auch ohne App

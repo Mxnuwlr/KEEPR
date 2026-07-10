@@ -9,7 +9,7 @@
  */
 
 // React/RN
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Animated, PanResponder, Modal, Image } from 'react-native';
 
 // Third-party
@@ -17,7 +17,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Internal
 import { useTheme } from '../theme';
-import { getSportColor } from '../api/client';
+import { getSportColor, api } from '../api/client';
 import { getSportMci } from '../data/sports';
 import ActivityMap from './ActivityMap';
 import AreaChart from './AreaChart';
@@ -61,6 +61,13 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const [overlays, setOverlays] = useState([]);
   const [layerModal, setLayerModal] = useState(false);
   const [flying, setFlying] = useState(false);
+  // KI-Feedback selbst laden (robust — unabhängig davon, ob es im Workout-Objekt steckt)
+  const [feedback, setFeedback] = useState(() => { try { return typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : (w.ai_feedback || null); } catch (e) { return null; } });
+  useEffect(() => {
+    let alive = true;
+    if (!feedback && w.id) api.getActivityFeedback(w.id).then(r => { if (alive && r) setFeedback(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [w.id]);
 
   const snapTo = (h) => {
     curH.current = h;
@@ -198,32 +205,6 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
             <Text style={[T.h2, { color: C.text, marginTop: 4 }]}>{title}</Text>
           </View>
 
-          {/* KI-Feedback zu dieser Einheit */}
-          {(() => {
-            let fb = null;
-            try { fb = typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : w.ai_feedback; } catch (e) {}
-            if (!fb?.feedback) return null;
-            const vc = { stark: C.success, solide: C.success, zu_locker: C.warning, zu_hart: C.danger, abweichung_vom_plan: C.danger }[fb.verdict] || C.text;
-            const vl = { stark: 'Stark', solide: 'Solide', zu_locker: 'Zu locker', zu_hart: 'Zu hart', abweichung_vom_plan: 'Weicht vom Plan ab' }[fb.verdict] || '';
-            return (
-              <View style={{ marginHorizontal: S.lg, marginTop: S.md, backgroundColor: C.surface, borderRadius: R.md, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <Feather name="cpu" size={15} color={C.text} />
-                  <Text style={[T.label, { color: C.textTertiary, flex: 1 }]}>KI-COACH</Text>
-                  {vl ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: vc + '18', borderRadius: R.full, paddingHorizontal: 8, paddingVertical: 3 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: vc }} />
-                      <Text style={[T.label, { color: vc }]}>{vl}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {fb.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 4 }]}>{fb.headline}</Text> : null}
-                <Text style={[T.caption, { color: C.textSecondary, lineHeight: 19 }]}>{fb.feedback}</Text>
-                {fb.tipp ? <Text style={[T.caption, { color: C.text, marginTop: 6 }]}>→ {fb.tipp}</Text> : null}
-              </View>
-            );
-          })()}
-
           {/* Kennzahlen-Raster */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.lg, marginTop: S.lg }}>
             {grid.map(([label, val], i) => (
@@ -233,6 +214,29 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
               </View>
             ))}
           </View>
+
+          {/* KI-Analyse dieser Einheit (zwischen Basisdaten und Diagrammen) */}
+          {feedback?.feedback && (() => {
+            const vc = { stark: C.success, solide: C.success, zu_locker: C.warning, zu_hart: C.danger, abweichung_vom_plan: C.danger }[feedback.verdict] || C.text;
+            const vl = { stark: 'Stark', solide: 'Solide', zu_locker: 'Zu locker', zu_hart: 'Zu hart', abweichung_vom_plan: 'Weicht vom Plan ab' }[feedback.verdict] || '';
+            return (
+              <View style={{ marginHorizontal: S.lg, marginTop: S.lg, backgroundColor: C.surface, borderRadius: R.md, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: vc + '55' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Feather name="cpu" size={15} color={vc} />
+                  <Text style={[T.label, { color: C.textTertiary, flex: 1 }]}>KI-ANALYSE</Text>
+                  {vl ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: vc + '18', borderRadius: R.full, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: vc }} />
+                      <Text style={[T.label, { color: vc }]}>{vl}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {feedback.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 4 }]}>{feedback.headline}</Text> : null}
+                <Text style={[T.caption, { color: C.textSecondary, lineHeight: 19 }]}>{feedback.feedback}</Text>
+                {feedback.tipp ? <Text style={[T.caption, { color: C.text, marginTop: 6 }]}>→ {feedback.tipp}</Text> : null}
+              </View>
+            );
+          })()}
 
           {/* Diagramme */}
           {charts.map((ch) => (
