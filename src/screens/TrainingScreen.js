@@ -854,7 +854,6 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   useEffect(() => {
     (async () => {
       const list = trainingPlan?.completedWorkouts || [];
-      console.log('[KI-DEBUG] completedWorkouts=', list.length, 'mitFb=', list.filter(w => w.ai_feedback).length, 'ids=', list.map(w => w.id).join(','));
       const cand = list
         .map(w => { let fb = null; try { fb = typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : w.ai_feedback; } catch (e) {} return { w, fb }; })
         .filter(x => x.fb?.feedback)

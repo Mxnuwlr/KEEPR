@@ -65,10 +65,7 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
   const [feedback, setFeedback] = useState(() => { try { return typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : (w.ai_feedback || null); } catch (e) { return null; } });
   useEffect(() => {
     let alive = true;
-    console.log('[KI-DEBUG] ActivityDetail id=', w.id, 'hasInlineFb=', !!feedback);
-    if (!feedback && w.id) api.getActivityFeedback(w.id)
-      .then(r => { console.log('[KI-DEBUG] GET feedback', w.id, '→', r ? (r.verdict || 'obj') : 'NULL'); if (alive && r) setFeedback(r); })
-      .catch(e => console.log('[KI-DEBUG] GET error', e?.message));
+    if (!feedback && w.id) api.getActivityFeedback(w.id).then(r => { if (alive && r) setFeedback(r); }).catch(() => {});
     return () => { alive = false; };
   }, [w.id]);
 
