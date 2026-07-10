@@ -255,9 +255,29 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
               {d.getDate()}. {d.toLocaleDateString('de-DE', { month: 'long' })}
             </Text>
           </View>
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-            <Feather name="x" size={18} color={C.text} />
-          </TouchableOpacity>
+          <View style={{ alignItems: 'flex-end', gap: 8 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={8} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <Feather name="x" size={18} color={C.text} />
+            </TouchableOpacity>
+            {/* Wetter (wie intervals.icu): Icon · Temp · Wind */}
+            {dayData?.weather && (dayData.weather.tmax != null) && (() => {
+              const wc = dayData.weather.code;
+              const icon = wc == null ? 'cloud' : wc === 0 ? 'sun' : wc <= 3 ? 'cloud' : wc <= 48 ? 'cloud' : wc <= 67 ? 'cloud-rain' : wc <= 77 ? 'cloud-snow' : wc <= 82 ? 'cloud-rain' : wc <= 86 ? 'cloud-snow' : 'cloud-lightning';
+              const iconColor = wc === 0 ? '#F5A623' : wc <= 3 ? '#9AA5B1' : wc >= 95 ? '#7C6FEF' : (wc >= 51 && wc <= 82) ? '#4A90D9' : '#9AA5B1';
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name={icon} size={18} color={iconColor} />
+                  <Text style={[T.caption, { color: C.text, fontWeight: '700' }]}>{dayData.weather.tmax}°<Text style={{ color: C.textTertiary }}>/{dayData.weather.tmin}°</Text></Text>
+                  {dayData.weather.wind != null && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Feather name="arrow-down" size={13} color={C.textSecondary} style={{ transform: [{ rotate: `${(dayData.weather.windDir || 0)}deg` }] }} />
+                      <Text style={[T.caption, { color: C.textSecondary }]}>{dayData.weather.wind}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </View>
         </View>
 
         {/* Übersicht: Tageswerte auf einen Blick */}
