@@ -245,23 +245,46 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: S.lg, paddingTop: S.xl, paddingBottom: 130 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.lg }}>
-          <Text style={[T.h3, { color: C.text }]}>
-            {d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </Text>
-          <TouchableOpacity onPress={onClose} hitSlop={8}>
-            <Feather name="x" size={22} color={C.textSecondary} />
+        {/* Kopf */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: S.lg }}>
+          <View>
+            <Text style={[T.label, { color: getSportColor(workouts[0]?.sport_type) !== '#6B7280' && workouts.length ? getSportColor(workouts[0]?.sport_type) : C.textTertiary, textTransform: 'uppercase', letterSpacing: 1 }]}>
+              {d.toLocaleDateString('de-DE', { weekday: 'long' })}
+            </Text>
+            <Text style={{ color: C.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 }}>
+              {d.getDate()}. {d.toLocaleDateString('de-DE', { month: 'long' })}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onClose} hitSlop={8} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+            <Feather name="x" size={18} color={C.text} />
           </TouchableOpacity>
         </View>
 
-        {/* Aktivität manuell eintragen */}
-        <TouchableOpacity
-          onPress={() => onAddActivity?.(date)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.tint + '15', borderRadius: R.lg, padding: S.md, marginBottom: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint + '40' }}
-        >
-          <Feather name="plus-circle" size={18} color={C.tint} />
-          <Text style={[T.bodyMed, { color: C.tint }]}>Aktivität eintragen</Text>
-        </TouchableOpacity>
+        {/* Übersicht: Tageswerte auf einen Blick */}
+        {(() => {
+          const h = dayData?.health || {};
+          const tiles = [
+            { icon: workouts.length ? getSportMci(workouts[0].sport_type) : 'run', mci: true, label: 'Training',
+              val: workouts.length ? `${workouts.reduce((a, w) => a + (w.duration_minutes || 0), 0)} Min` : (planned.length ? 'Geplant' : '–'),
+              color: workouts.length ? C.success : planned.length ? C.tint : C.textTertiary },
+            { icon: 'zap', label: 'Kalorien', val: calories?.totals?.calories > 0 ? `${Math.round(calories.totals.calories)}` : '–', color: C.tint },
+            { icon: 'moon', label: 'Schlaf', val: h.sleep_hours ? `${h.sleep_hours} h` : '–', color: '#8B5CF6' },
+            { icon: 'heart', label: 'Ruhepuls', val: h.resting_hr ? `${h.resting_hr}` : '–', color: C.danger },
+          ];
+          return (
+            <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.lg }}>
+              {tiles.map((t) => (
+                <View key={t.label} style={{ flex: 1, backgroundColor: C.surface, borderRadius: R.md, paddingVertical: S.md, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                  {t.mci
+                    ? <MaterialCommunityIcons name={t.icon} size={17} color={t.color} style={{ marginBottom: 5 }} />
+                    : <Feather name={t.icon} size={16} color={t.color} style={{ marginBottom: 5 }} />}
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{t.val}</Text>
+                  <Text style={[T.label, { color: C.textTertiary, marginTop: 1 }]}>{t.label}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
 
         {(workouts.length > 0 || planned.length > 0) && (
           <View style={{ marginBottom: S.lg }}>
@@ -391,10 +414,19 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
           </View>
         )}
 
-        {workouts.length === 0 && !planned && !(calories?.totals?.calories > 0) && !wellness && !dayData?.health && (
-          <View style={{ alignItems: 'center', paddingVertical: S.xxl }}>
-            <Feather name="inbox" size={36} color={C.textTertiary} />
-            <Text style={[T.body, { color: C.textSecondary, marginTop: S.md }]}>Keine Daten für diesen Tag</Text>
+        {/* Aktivität manuell eintragen (dezent) */}
+        <TouchableOpacity
+          onPress={() => onAddActivity?.(date)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.surface, borderRadius: R.md, paddingVertical: 13, marginTop: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}
+        >
+          <Feather name="plus" size={17} color={C.textSecondary} />
+          <Text style={[T.bodyMed, { color: C.textSecondary }]}>Aktivität eintragen</Text>
+        </TouchableOpacity>
+
+        {workouts.length === 0 && !planned.length && !(calories?.totals?.calories > 0) && !wellness && !dayData?.health && (
+          <View style={{ alignItems: 'center', paddingVertical: S.xl }}>
+            <Feather name="inbox" size={30} color={C.textTertiary} />
+            <Text style={[T.caption, { color: C.textTertiary, marginTop: S.sm }]}>Keine weiteren Daten für diesen Tag</Text>
           </View>
         )}
       </ScrollView>
