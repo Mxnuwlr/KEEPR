@@ -17,10 +17,20 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Internal
 import { useTheme } from '../theme';
+import { useStore } from '../store';
 import { getSportColor, api } from '../api/client';
 import { getSportMci } from '../data/sports';
 import ActivityMap from './ActivityMap';
 import AreaChart from './AreaChart';
+
+// intervals.icu-Zonen (Farben nah am Original)
+const ZONE_COLORS = ['#9CA3AF', '#3B82F6', '#22C55E', '#EAB308', '#F97316', '#EF4444', '#A855F7'];
+const POWER_LABELS = ['Z1 Recovery', 'Z2 Ausdauer', 'Z3 Tempo', 'Z4 Schwelle', 'Z5 VO2max', 'Z6 Anaerob', 'Z7 Neuromusk.'];
+const HR_LABELS = ['Z1 Aktiv-Erh.', 'Z2 Ausdauer', 'Z3 Tempo', 'Z4 Schwelle', 'Z5 Maximal'];
+// obere Grenzen als Anteil von FTP bzw. maxHF
+const POWER_TH = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50, 99];
+const HR_TH = [0.60, 0.70, 0.80, 0.90, 99];
+function zoneIndex(pct, thresholds) { for (let i = 0; i < thresholds.length; i++) if (pct <= thresholds[i]) return i; return thresholds.length - 1; }
 
 const fmtHMS = (s) => {
   if (!s) return '–';
@@ -43,6 +53,9 @@ const OVERLAYS = [
 
 export default function ActivityDetail({ workout, onClose, onDelete, actions }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const { user } = useStore();
+  const ftp = user?.ftp || 0;
+  const maxHr = user?.maxHr || user?.max_hr || 0;
   const mapRef = useRef(null);
   const { height: screenH } = Dimensions.get('window');
 
@@ -268,24 +281,42 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
             </View>
           ))}
 
-          {/* Intervall-Balkenprofil (wie bei geplanten Einheiten) */}
+          {/* Intervall-Balkenprofil in Trainingszonen (intervals.icu-Stil) */}
           {Array.isArray(done.laps) && done.laps.length > 1 && (() => {
-            const metric = (lp) => lp.avg_watts || lp.avg_hr || (lp.distanz_m && lp.zeit_s ? lp.distanz_m / lp.zeit_s : 0) || 0;
+            const usePower = done.laps.some(l => l.avg_watts) && ftp > 0;
+            const useHr = !usePower && done.laps.some(l => l.avg_hr) && maxHr > 0;
+            if (!usePower && !useHr) return null;
+            const ref = usePower ? ftp : maxHr;
+            const TH = usePower ? POWER_TH : HR_TH;
+            const LABELS = usePower ? POWER_LABELS : HR_LABELS;
+            const metric = (lp) => usePower ? (lp.avg_watts || 0) : (lp.avg_hr || 0);
             const maxM = Math.max(...done.laps.map(metric), 1);
             const totT = done.laps.reduce((a, lp) => a + (lp.zeit_s || 1), 0) || 1;
-            const unit = done.laps.some(l => l.avg_watts) ? 'W' : done.laps.some(l => l.avg_hr) ? 'bpm' : '';
+            const usedZones = new Set();
+            const bars = done.laps.slice(0, 80).map((lp, i) => {
+              const m = metric(lp);
+              const zi = zoneIndex(m / ref, TH);
+              usedZones.add(zi);
+              return { key: i, h: Math.max(0.06, m / maxM), w: Math.max(0.4, ((lp.zeit_s || 1) / totT) * 100), color: ZONE_COLORS[zi] };
+            });
             return (
               <View style={{ marginTop: S.xl, paddingHorizontal: S.lg }}>
-                <Text style={[T.h3, { color: C.text, marginBottom: S.sm }]}>Intervalle</Text>
-                <View style={{ height: 90, flexDirection: 'row', alignItems: 'flex-end', gap: 2, backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
-                  {done.laps.slice(0, 60).map((lp, i) => {
-                    const hPct = Math.max(0.08, metric(lp) / maxM);
-                    const wPct = Math.max(0.5, ((lp.zeit_s || 1) / totT) * 100);
-                    const isWork = lp.typ === 'WORK' || metric(lp) > maxM * 0.7;
-                    return <View key={i} style={{ flexGrow: wPct, height: `${hPct * 100}%`, backgroundColor: isWork ? '#FC4C02' : sc + '99', borderRadius: 2 }} />;
-                  })}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: S.sm }}>
+                  <Text style={[T.h3, { color: C.text }]}>Intervalle</Text>
+                  <Text style={[T.caption, { color: C.textTertiary }]}>{usePower ? `Leistung · FTP ${ftp} W` : `Puls · maxHF ${maxHr}`}</Text>
                 </View>
-                <Text style={[T.caption, { color: C.textTertiary, marginTop: 4 }]}>{done.laps.length} Intervalle{unit ? ` · Balkenhöhe = ${unit === 'W' ? 'Leistung' : 'Puls'}` : ''}</Text>
+                <View style={{ height: 96, flexDirection: 'row', alignItems: 'flex-end', gap: 1.5, backgroundColor: C.surface, borderRadius: R.md, padding: S.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                  {bars.map(b => <View key={b.key} style={{ flexGrow: b.w, height: `${b.h * 100}%`, backgroundColor: b.color, borderRadius: 1.5 }} />)}
+                </View>
+                {/* Zonen-Legende (nur vorkommende Zonen) */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md, marginTop: S.sm }}>
+                  {[...usedZones].sort((a, b) => a - b).map(zi => (
+                    <View key={zi} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: ZONE_COLORS[zi] }} />
+                      <Text style={[T.caption, { color: C.textSecondary }]}>{LABELS[zi]}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           })()}
