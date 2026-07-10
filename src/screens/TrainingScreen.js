@@ -36,6 +36,7 @@ import { assessRecovery, EASE_INSTRUCTION } from '../utils/recovery';
 import { weakestZones } from '../data/mobility';
 import { getSessionSteps } from '../utils/workoutStructure';
 import WorkoutProfileChart from '../components/WorkoutProfileChart';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ActivityDetail from '../components/ActivityDetail';
 import ActivityCard from '../components/ActivityCard';
 import { getSportMci } from '../data/sports';
@@ -847,6 +848,36 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
   const [regenLoading, setRegenLoading] = useState(false);
   const [rebalancing, setRebalancing] = useState(false);
   const [detailWorkout, setDetailWorkout] = useState(null); // absolvierte Einheit (Strava-Detail)
+  const [freshFeedback, setFreshFeedback] = useState(null); // frische KI-Analyse als Popup
+
+  // Frische Einheit mit KI-Feedback (letzte 48h, noch nicht gesehen) → Popup
+  useEffect(() => {
+    (async () => {
+      const list = trainingPlan?.completedWorkouts || [];
+      const cutoff = Date.now() - 48 * 3600 * 1000;
+      const cand = list
+        .map(w => { let fb = null; try { fb = typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : w.ai_feedback; } catch (e) {} return { w, fb }; })
+        .filter(x => x.fb?.feedback && new Date((x.w.completed_at || x.w.date || '').replace(' ', 'T')).getTime() > cutoff)
+        .sort((a, b) => String(b.w.completed_at || b.w.date).localeCompare(String(a.w.completed_at || a.w.date)));
+      if (!cand.length) return;
+      try {
+        const seen = JSON.parse((await AsyncStorage.getItem('seen_activity_feedback')) || '[]');
+        const next = cand.find(x => !seen.includes(x.w.id));
+        if (next) setFreshFeedback(next);
+      } catch (e) {}
+    })();
+  }, [trainingPlan]);
+
+  const dismissFresh = async () => {
+    if (freshFeedback) {
+      try {
+        const seen = JSON.parse((await AsyncStorage.getItem('seen_activity_feedback')) || '[]');
+        seen.push(freshFeedback.w.id);
+        await AsyncStorage.setItem('seen_activity_feedback', JSON.stringify(seen.slice(-100)));
+      } catch (e) {}
+    }
+    setFreshFeedback(null);
+  };
 
   const handleRegenerate = async (instruction) => {
     setRegenLoading(true);
@@ -1647,6 +1678,38 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
           ])}
         />
       )}
+
+      {/* Popup: frische Einheit + KI-Analyse */}
+      <Modal visible={!!freshFeedback} transparent animationType="fade" onRequestClose={dismissFresh}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: S.lg }}>
+          {freshFeedback && (() => {
+            const fb = freshFeedback.fb, w = freshFeedback.w;
+            const vc = { stark: C.success, solide: C.success, zu_locker: C.warning, zu_hart: C.danger, abweichung_vom_plan: C.danger }[fb.verdict] || C.text;
+            const vl = { stark: 'Stark', solide: 'Solide', zu_locker: 'Zu locker', zu_hart: 'Zu hart', abweichung_vom_plan: 'Weicht vom Plan ab' }[fb.verdict] || '';
+            return (
+              <View style={{ backgroundColor: C.bg, borderRadius: R.xl, padding: S.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: S.sm }}>
+                  <Feather name="cpu" size={18} color={C.text} />
+                  <Text style={[T.h3, { color: C.text, flex: 1 }]}>KI-Analyse</Text>
+                  {vl ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: vc + '18', borderRadius: R.full, paddingHorizontal: 9, paddingVertical: 4 }}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: vc }} /><Text style={[T.label, { color: vc }]}>{vl}</Text></View> : null}
+                </View>
+                <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.sm }]}>{w.focus || w.title || 'Einheit'}</Text>
+                {fb.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 6 }]}>{fb.headline}</Text> : null}
+                <Text style={[T.body, { color: C.textSecondary, lineHeight: 21 }]}>{fb.feedback}</Text>
+                {fb.tipp ? <Text style={[T.body, { color: C.text, marginTop: S.sm }]}>→ {fb.tipp}</Text> : null}
+                <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
+                  <TouchableOpacity onPress={dismissFresh} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                    <Text style={[T.bodyMed, { color: C.textSecondary }]}>Ok</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { const wk = w; dismissFresh(); setDetailWorkout(wk); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: R.md, backgroundColor: C.accent }}>
+                    <Text style={[T.bodyMed, { color: C.accentText }]}>Einheit ansehen</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })()}
+        </View>
+      </Modal>
     </>
   );
 }

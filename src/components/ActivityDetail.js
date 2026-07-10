@@ -198,6 +198,32 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
             <Text style={[T.h2, { color: C.text, marginTop: 4 }]}>{title}</Text>
           </View>
 
+          {/* KI-Feedback zu dieser Einheit */}
+          {(() => {
+            let fb = null;
+            try { fb = typeof w.ai_feedback === 'string' ? JSON.parse(w.ai_feedback) : w.ai_feedback; } catch (e) {}
+            if (!fb?.feedback) return null;
+            const vc = { stark: C.success, solide: C.success, zu_locker: C.warning, zu_hart: C.danger, abweichung_vom_plan: C.danger }[fb.verdict] || C.text;
+            const vl = { stark: 'Stark', solide: 'Solide', zu_locker: 'Zu locker', zu_hart: 'Zu hart', abweichung_vom_plan: 'Weicht vom Plan ab' }[fb.verdict] || '';
+            return (
+              <View style={{ marginHorizontal: S.lg, marginTop: S.md, backgroundColor: C.surface, borderRadius: R.md, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Feather name="cpu" size={15} color={C.text} />
+                  <Text style={[T.label, { color: C.textTertiary, flex: 1 }]}>KI-COACH</Text>
+                  {vl ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: vc + '18', borderRadius: R.full, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: vc }} />
+                      <Text style={[T.label, { color: vc }]}>{vl}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {fb.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 4 }]}>{fb.headline}</Text> : null}
+                <Text style={[T.caption, { color: C.textSecondary, lineHeight: 19 }]}>{fb.feedback}</Text>
+                {fb.tipp ? <Text style={[T.caption, { color: C.text, marginTop: 6 }]}>→ {fb.tipp}</Text> : null}
+              </View>
+            );
+          })()}
+
           {/* Kennzahlen-Raster */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: S.lg, marginTop: S.lg }}>
             {grid.map(([label, val], i) => (
