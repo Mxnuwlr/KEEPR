@@ -67,7 +67,38 @@ function StatPill({ label, value }) {
   );
 }
 
-function DayCard({ date, dayData, isToday, onPress, onKIReview }) {
+// WMO-Code → Feather-Icon + Farbe
+function wxIcon(wc) {
+  const icon = wc == null ? 'cloud' : wc === 0 ? 'sun' : wc <= 3 ? 'cloud' : wc <= 48 ? 'cloud' : wc <= 67 ? 'cloud-rain' : wc <= 77 ? 'cloud-snow' : wc <= 82 ? 'cloud-rain' : wc <= 86 ? 'cloud-snow' : 'cloud-lightning';
+  const color = wc === 0 ? '#F5A623' : wc <= 3 ? '#9AA5B1' : wc >= 95 ? '#7C6FEF' : (wc >= 51 && wc <= 86) ? '#4A90D9' : '#9AA5B1';
+  return { icon, color };
+}
+
+// Kompaktes Wetter-Widget (Icon · Temp min/max · Wind), tippbar
+function WeatherMini({ weather, onPress, C, T }) {
+  if (!weather || weather.tmax == null) return null;
+  const { icon, color } = wxIcon(weather.code);
+  return (
+    <TouchableOpacity onPress={onPress} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <Feather name={icon} size={17} color={color} />
+      <View style={{ alignItems: 'flex-start' }}>
+        <Text style={{ color: C.text, fontSize: 11, fontWeight: '700' }}>{weather.tmax}°</Text>
+        <Text style={{ color: C.textTertiary, fontSize: 11 }}>{weather.tmin}°</Text>
+      </View>
+      {weather.wind != null && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1, marginLeft: 2 }}>
+          <Feather name="arrow-down" size={12} color={C.textSecondary} style={{ transform: [{ rotate: `${(weather.windDir || 0)}deg` }] }} />
+          <View style={{ alignItems: 'flex-start' }}>
+            <Text style={{ color: C.textSecondary, fontSize: 10 }}>{weather.wind}</Text>
+            {weather.gust != null && <Text style={{ color: C.textTertiary, fontSize: 10 }}>{weather.gust}</Text>}
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function DayCard({ date, dayData, isToday, onPress, onKIReview, onWeatherPress }) {
   const { colors: C, spacing: S, radius: R, type: T } = useTheme();
   const dayIdx = (new Date(date+'T12:00:00').getDay()+6)%7;
   const dayShort = DAYS_SHORT[dayIdx];
@@ -131,14 +162,17 @@ function DayCard({ date, dayData, isToday, onPress, onKIReview }) {
             <Text style={[T.caption, { color: C.textTertiary }]}>{isFuture ? '—' : 'Kein Eintrag'}</Text>
           )}
         </View>
-        {onKIReview && workout && (
-          <TouchableOpacity
-            style={{ backgroundColor: C.tint+'18', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint+'40' }}
-            onPress={() => onKIReview(date, workout)}
-          >
-            <Text style={[T.label, { color: C.tint }]}>KI</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+          {dayData?.weather && <WeatherMini weather={dayData.weather} onPress={() => onWeatherPress?.(date)} C={C} T={T} />}
+          {onKIReview && workout && (
+            <TouchableOpacity
+              style={{ backgroundColor: C.tint+'18', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: C.tint+'40' }}
+              onPress={() => onKIReview(date, workout)}
+            >
+              <Text style={[T.label, { color: C.tint }]}>KI</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {(calDone > 0 || wellness) && (
@@ -163,6 +197,95 @@ function DayCard({ date, dayData, isToday, onPress, onKIReview }) {
         </View>
       )}
     </TouchableOpacity>
+  );
+}
+
+// Detailliertes Wetter-Popup (stündlich, wie intervals.icu)
+function WeatherModal({ visible, date, onClose }) {
+  const { colors: C, spacing: S, radius: R, type: T } = useTheme();
+  const [wx, setWx] = useState(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (visible && date) {
+      setWx(null); setLoading(true);
+      api.getWeatherDetail(date).then(r => { if (alive) { setWx(r); setLoading(false); } }).catch(() => { if (alive) setLoading(false); });
+    }
+    return () => { alive = false; };
+  }, [visible, date]);
+  const WMO_DE = { 0: 'Klarer Himmel', 1: 'Überwiegend klar', 2: 'Teilweise bewölkt', 3: 'Bewölkt', 45: 'Nebel', 48: 'Reifnebel', 51: 'Leichter Niesel', 53: 'Niesel', 55: 'Starker Niesel', 61: 'Leichter Regen', 63: 'Regen', 65: 'Starker Regen', 71: 'Leichter Schnee', 73: 'Schnee', 75: 'Starker Schnee', 80: 'Regenschauer', 81: 'Regenschauer', 82: 'Starke Schauer', 95: 'Gewitter', 96: 'Gewitter', 99: 'Starkes Gewitter' };
+  const d = date ? new Date(date + 'T12:00:00') : null;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: S.md }} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: C.surface, borderRadius: R.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, maxHeight: '85%' }}>
+          {loading ? (
+            <View style={{ padding: S.xl, alignItems: 'center' }}><ActivityIndicator color={C.textSecondary} /></View>
+          ) : !wx ? (
+            <View style={{ padding: S.xl, alignItems: 'center' }}><Text style={[T.body, { color: C.textSecondary }]}>Kein Wetter verfügbar</Text></View>
+          ) : (
+            <ScrollView contentContainerStyle={{ padding: S.lg }} showsVerticalScrollIndicator={false}>
+              {/* Kopf: Ort · Datum · Sonnenzeiten */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }}>
+                <Text style={[T.h3, { color: C.text }]}>{wx.place || 'Standort'}</Text>
+                <Text style={[T.caption, { color: C.textSecondary }]}>{d?.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
+                <TouchableOpacity onPress={onClose} hitSlop={8}><Feather name="x" size={20} color={C.textSecondary} /></TouchableOpacity>
+              </View>
+              <Text style={[T.caption, { color: C.textTertiary, marginBottom: S.md }]}>☀ {wx.sunrise} – {wx.sunset}</Text>
+
+              {/* Tages-Übersicht */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg, marginBottom: S.md }}>
+                <Feather name={wxIcon(wx.code).icon} size={38} color={wxIcon(wx.code).color} />
+                <View>
+                  <Text style={{ color: C.text, fontSize: 22, fontWeight: '800' }}>{wx.tmax}° <Text style={{ color: C.textTertiary, fontSize: 16 }}>/ {wx.tmin}°</Text></Text>
+                  <Text style={[T.caption, { color: C.textSecondary }]}>{WMO_DE[wx.code] || '–'}</Text>
+                </View>
+                <View style={{ marginLeft: 'auto', alignItems: 'center' }}>
+                  <Feather name="arrow-down" size={18} color={C.textSecondary} style={{ transform: [{ rotate: `${wx.windDir || 0}deg` }] }} />
+                  <Text style={[T.caption, { color: C.text, fontWeight: '600' }]}>{wx.wind} km/h</Text>
+                  <Text style={[T.caption, { color: C.textTertiary, fontSize: 10 }]}>Böen {wx.gust}</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md, marginBottom: S.md }}>
+                {[['Luftfeuchte', wx.humidity != null ? `${wx.humidity}%` : null], ['Regen', `${wx.rainSum} mm`], ['Schnee', `${wx.snowSum} mm`], ['Druck', wx.pressure ? `${wx.pressure} hPa` : null], ['Taupunkt', wx.dew != null ? `${wx.dew}°` : null]].filter(([, v]) => v).map(([l, v]) => (
+                  <View key={l} style={{ minWidth: 80 }}>
+                    <Text style={[T.label, { color: C.textTertiary }]}>{l}</Text>
+                    <Text style={[T.caption, { color: C.text, fontWeight: '600' }]}>{v}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Stündlich */}
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, paddingTop: S.sm }}>
+                <View style={{ flexDirection: 'row', paddingBottom: 6 }}>
+                  {['Zeit', '°C', 'Wind', 'Böen', 'Regen'].map((h, i) => (
+                    <Text key={h} style={[T.label, { color: C.textTertiary, flex: i === 0 ? 1 : 1, textAlign: i === 0 ? 'left' : 'center' }]}>{h}</Text>
+                  ))}
+                </View>
+                {(wx.hours || []).map((hr, i) => {
+                  const ic = wxIcon(hr.code);
+                  return (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border }}>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[T.caption, { color: C.textSecondary }]}>{hr.t}</Text>
+                        <Feather name={ic.icon} size={13} color={ic.color} />
+                      </View>
+                      <Text style={[T.caption, { color: C.text, flex: 1, textAlign: 'center' }]}>{hr.temp}°</Text>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        <Feather name="arrow-down" size={11} color={C.textTertiary} style={{ transform: [{ rotate: `${hr.dir || 0}deg` }] }} />
+                        <Text style={[T.caption, { color: C.textSecondary }]}>{hr.wind}</Text>
+                      </View>
+                      <Text style={[T.caption, { color: C.textSecondary, flex: 1, textAlign: 'center' }]}>{hr.gust}</Text>
+                      <Text style={[T.caption, { color: hr.rain > 0 ? '#4A90D9' : C.textTertiary, flex: 1, textAlign: 'center' }]}>{hr.rain > 0 ? `${hr.rain}` : '–'}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -585,6 +708,8 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
   const [activityVisible, setActivityVisible] = useState(false);
   const [activityDate, setActivityDate] = useState(null);
   const [reviewVisible, setReviewVisible] = useState(false);
+  const [weatherVisible, setWeatherVisible] = useState(false);
+  const [weatherDate, setWeatherDate] = useState(null);
 
   const openActivity = (d) => { setActivityDate(d || today); setDetailVisible(false); setActivityVisible(true); };
 
@@ -654,6 +779,7 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
         weekLabel={weekLabel}
         onClose={() => setReviewVisible(false)}
       />
+      <WeatherModal visible={weatherVisible} date={weatherDate} onClose={() => setWeatherVisible(false)} />
 
       <ScrollView
         style={{ flex: 1, backgroundColor: C.bg }}
@@ -737,6 +863,7 @@ export default function CalendarScreen({ tabBar, onSwitchToKalorien }) {
                     key={date} date={date} dayData={weekData[date]} isToday={date===today}
                     onPress={() => { setSelectedDate(date); setDetailVisible(true); }}
                     onKIReview={(d,w) => { setKiDate(d); setKiWorkout(w); setKiVisible(true); }}
+                    onWeatherPress={(d) => { setWeatherDate(d); setWeatherVisible(true); }}
                   />
                 ))}
               </View>

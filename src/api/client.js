@@ -163,6 +163,7 @@ export const api = {
 
   // Calendar (combined)
   getCalendarDay: (date) => request('GET', `/api/calendar/day?date=${date}`),
+  getWeatherDetail: (date) => request('GET', `/api/weather/detail?date=${date}`),
   getCalendarMonth: (year, month) => request('GET', `/api/calendar/month?year=${year}&month=${month}`),
 
   // Water
