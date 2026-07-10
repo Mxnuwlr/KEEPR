@@ -366,7 +366,32 @@ function DayDetailModal({ visible, date, dayData: dayDataProp, onClose, onDelete
           </View>
         )}
 
-        {workouts.length === 0 && !planned && !(calories?.totals?.calories > 0) && !wellness && (
+        {/* Gesundheitsdaten (von Garmin über intervals.icu) */}
+        {dayData?.health && (dayData.health.resting_hr || dayData.health.hrv || dayData.health.sleep_hours || dayData.health.steps || dayData.health.vo2max) && (
+          <View style={{ marginBottom: S.lg }}>
+            <Text style={[T.label, { color: C.textTertiary, textTransform: 'uppercase', marginBottom: S.sm }]}>Gesundheit</Text>
+            <View style={{ backgroundColor: C.surface, borderRadius: R.lg, padding: S.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.lg }}>
+                {[
+                  ['moon', 'Schlaf', dayData.health.sleep_hours ? `${dayData.health.sleep_hours} h` : null],
+                  ['award', 'Schlaf-Score', dayData.health.sleep_score ? `${dayData.health.sleep_score}` : null],
+                  ['heart', 'Ruhepuls', dayData.health.resting_hr ? `${dayData.health.resting_hr} bpm` : null],
+                  ['activity', 'HRV', dayData.health.hrv ? `${dayData.health.hrv} ms` : null],
+                  ['trending-up', 'Schritte', dayData.health.steps ? `${dayData.health.steps.toLocaleString('de-DE')}` : null],
+                  ['wind', 'VO2max', dayData.health.vo2max ? `${dayData.health.vo2max}` : null],
+                ].filter(([,, v]) => v).map(([ico, label, val]) => (
+                  <View key={label} style={{ alignItems: 'center', minWidth: 64 }}>
+                    <Feather name={ico} size={15} color={C.textSecondary} style={{ marginBottom: 3 }} />
+                    <Text style={[T.caption, { color: C.textTertiary, fontSize: 9, marginBottom: 2 }]}>{label}</Text>
+                    <Text style={[T.caption, { color: C.text, fontWeight: '700' }]}>{val}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {workouts.length === 0 && !planned && !(calories?.totals?.calories > 0) && !wellness && !dayData?.health && (
           <View style={{ alignItems: 'center', paddingVertical: S.xxl }}>
             <Feather name="inbox" size={36} color={C.textTertiary} />
             <Text style={[T.body, { color: C.textSecondary, marginTop: S.md }]}>Keine Daten für diesen Tag</Text>
