@@ -147,8 +147,8 @@ function DayCard({ date, dayData, isToday, onPress, onKIReview, onWeatherPress }
             planned.map((p, pi) => (
               <View key={pi} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: pi < planned.length-1 ? 2 : 0 }}>
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: getSportColor(p.sport_type), opacity: 0.5 }} />
-                <Text style={[T.caption, { color: C.textTertiary }]} numberOfLines={1}>{p.focus}</Text>
-                {pi === 0 && <Text style={[T.label, { color: C.tint }]}>Ausstehend</Text>}
+                <Text style={[T.caption, { color: C.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{p.focus}</Text>
+                {pi === 0 && <Text style={[T.label, { color: C.tint }]} numberOfLines={1}>Ausstehend</Text>}
               </View>
             ))
           ) : planned.length > 0 && isFuture ? (
