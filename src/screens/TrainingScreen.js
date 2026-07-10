@@ -1696,6 +1696,12 @@ export default function TrainingScreen({ navigation, route, tabBar } = {}) {
                 {fb.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 6 }]}>{fb.headline}</Text> : null}
                 <Text style={[T.body, { color: C.textSecondary, lineHeight: 21 }]}>{fb.feedback}</Text>
                 {fb.tipp ? <Text style={[T.body, { color: C.text, marginTop: S.sm }]}>→ {fb.tipp}</Text> : null}
+                {fb.applied ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: S.sm, backgroundColor: C.success + '18', borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 8 }}>
+                    <Feather name="check-circle" size={14} color={C.success} />
+                    <Text style={[T.caption, { color: C.success, flex: 1 }]}>{fb.applied}</Text>
+                  </View>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
                   <TouchableOpacity onPress={dismissFresh} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }}>
                     <Text style={[T.bodyMed, { color: C.textSecondary }]}>Ok</Text>

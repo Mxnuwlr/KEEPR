@@ -234,6 +234,12 @@ export default function ActivityDetail({ workout, onClose, onDelete, actions }) 
                 {feedback.headline ? <Text style={[T.bodyMed, { color: C.text, marginBottom: 4 }]}>{feedback.headline}</Text> : null}
                 <Text style={[T.caption, { color: C.textSecondary, lineHeight: 19 }]}>{feedback.feedback}</Text>
                 {feedback.tipp ? <Text style={[T.caption, { color: C.text, marginTop: 6 }]}>→ {feedback.tipp}</Text> : null}
+                {feedback.applied ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: C.success + '18', borderRadius: R.sm, paddingHorizontal: 8, paddingVertical: 6 }}>
+                    <Feather name="check-circle" size={13} color={C.success} />
+                    <Text style={[T.caption, { color: C.success, flex: 1 }]}>{feedback.applied}</Text>
+                  </View>
+                ) : null}
               </View>
             );
           })()}
